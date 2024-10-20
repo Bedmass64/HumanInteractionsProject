@@ -1,0 +1,38 @@
+Sunday tasks:
+Wake up,1
+Go to Gym,1
+Prepare for day,1
+Frizbee Pracice,1
+
+Monday tasks:
+Wake up,1
+Go to Gym,1
+Prepare for day,1
+
+Tuesday tasks:
+Wake up,1
+Go to Gym,1
+Prepare for day,1
+Run Club,1
+
+Wednesday tasks:
+Wake up,1
+Go to Gym,1
+Prepare for day,1
+Frizbee Practice,1
+
+Thursday tasks:
+Wake up,1
+Go to Gym,1
+Prepare for day,1
+
+Friday tasks:
+Wake up,1
+Go to Gym,1
+Prepare for day,1
+
+Saturday tasks:
+Wake up,1
+Go to Gym,1
+Prepare for day,1
+

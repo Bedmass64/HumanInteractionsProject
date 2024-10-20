@@ -1,3 +1,6 @@
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class TaskListify{
@@ -122,7 +125,30 @@ public class TaskListify{
 
         // Print the task lists
         printDaysWithEvents(taskLists);
+
+        exportToTxt(taskLists, "tasklist.txt");
+
         scanner.close();
+    }
+
+    private static void exportToTxt(Map<String, TaskList> taskLists, String fileName) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+            // Write the task lists to the file
+            for (String day : taskLists.keySet()) {
+                TaskList taskList = taskLists.get(day);
+                writer.write(day + " tasks:\n");
+                if (!taskList.getTasks().isEmpty()) {
+                    for (Task task : taskList.getTasks()) {
+                        // Writing in CSV-like format: Event Name,Times per Day
+                        writer.write(task.getEventName() + "," + task.getTimesPerDay() + "\n");
+                    }
+                }
+                writer.write("\n"); // Empty line after each day
+            }
+            System.out.println("Task list exported to " + fileName);
+        } catch (IOException e) {
+            System.out.println("An error occurred while exporting the task list: " + e.getMessage());
+        }
     }
 
     private static void printDaysWithEvents(Map<String, TaskList> taskLists){
@@ -136,6 +162,6 @@ public class TaskListify{
                 }
             }
         }
-        System.out.println("--------------------------------------------");
+        System.out.println("\n\n--------------------------------------------\n");
     }
 }
