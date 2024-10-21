@@ -1,19 +1,19 @@
 Sunday tasks:
 
 Monday tasks:
-Studying,1
+Buy Groceries,1
 
 Tuesday tasks:
-Studying,1
+Buy Groceries,1
 
 Wednesday tasks:
-Studying,1
+Buy Groceries,1
 
 Thursday tasks:
-Studying,1
+Buy Groceries,1
 
 Friday tasks:
-Studying,1
+Buy Groceries,1
 
 Saturday tasks:
 
