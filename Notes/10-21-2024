@@ -1,0 +1,4 @@
+Commands to compile and run code
+
+javac -d out src/humaninteractions/*.java
+java -cp out \src\TaskListify.class

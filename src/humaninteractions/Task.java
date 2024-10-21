@@ -1,4 +1,4 @@
-package src.humaninteractions;
+package humaninteractions;
 
 class Task {
     final private String eventName;
