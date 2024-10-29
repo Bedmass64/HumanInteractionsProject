@@ -1,4 +1,4 @@
-package humaninteractions;
+package src.humaninteractions;
 import java.util.*;
 
 class TaskList {
