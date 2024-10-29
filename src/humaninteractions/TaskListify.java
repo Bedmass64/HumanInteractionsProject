@@ -2,6 +2,7 @@ package humaninteractions;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.*;
 import java.util.*;
 
 public class TaskListify{
@@ -123,6 +124,23 @@ public class TaskListify{
                 }
             }
         }
+
+        // // SQLite database setup
+        // String url = "jdbc:sqlite:db/tasklist.db";
+        // try (Connection conn = DriverManager.getConnection(url)) {
+        //     if (conn != null) {
+        //         Statement stmt = conn.createStatement();
+        //         stmt.execute("CREATE TABLE IF NOT EXISTS tasks (day TEXT, eventName TEXT, timesPerDay INTEGER)");
+
+        //         // Query data from DB
+        //         ResultSet rs = stmt.executeQuery("SELECT * FROM tasks");
+        //         while (rs.next()) {
+        //             System.out.println(rs.getString("day") + ": " + rs.getString("eventName") + " - " + rs.getInt("timesPerDay"));
+        //         }
+        //     }
+        // } catch (Exception e) {
+        //     e.printStackTrace();
+        // }
 
         // Print the task lists
         printDaysWithEvents(taskLists);
