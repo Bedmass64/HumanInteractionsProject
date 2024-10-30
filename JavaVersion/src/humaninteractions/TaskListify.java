@@ -1,4 +1,4 @@
-package src.humaninteractions;
+package JavaVersion.src.humaninteractions;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
