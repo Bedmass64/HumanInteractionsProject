@@ -1,1 +1,21 @@
-Hello
+**Features and stuff to add to our web app (Current and fututre):
+
+- Make a time of the day feature, along with duration of events. -> this is available as an option for if the person chooses to
+    use times or just adds the events to the list without times.
+- make a save button on the app in order to save the list that was created in a txt file, in order to have it then be further converted to an excel format,
+etc (Whatver we choose to go with for the format or way to store the information so that it can be accessed in a convenient way ans used as a template for increased reusibility)
+- otpion to modify previously saved lists and templates in order to make them more convenient and reusable.
+- add some more colour and expression to our web page in order to make it look more appealing to the user.
+- How will we incorporate the theory we’ve learned? -> down the line this will be compared with our project and the slides for the class
+- make the lists available in different visual formats on the website, based on different preferences chosen by the user (In the column format, or in the regular non column format)
+
+
+**Commands to run the react on a terminal:
+cd into the tasklistify directory
+npm install
+npm start
+
+this will open the react application on a web browser.
+
+
+
