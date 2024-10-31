@@ -1,18 +1,14 @@
-// TaskList.js
-import Task from './Task';
-
-class TaskList {
+// src/models/TaskList.js
+export default class TaskList {
     constructor() {
-        this.tasks = [];
+      this.tasks = [];
     }
 
     addTask(task) {
-        this.tasks.push(task);
+      this.tasks.push(task);
     }
 
     getTasks() {
-        return this.tasks;
+      return this.tasks;
     }
-}
-
-export default TaskList;
+  }

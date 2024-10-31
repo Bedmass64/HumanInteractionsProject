@@ -2,7 +2,7 @@ package JavaVersion.src.humaninteractions;
 import java.util.*;
 
 class TaskList {
-    private List<Task> tasks;
+    final private List<Task> tasks;
 
     public TaskList() {
         tasks = new ArrayList<>();
