@@ -1,0 +1,52 @@
+/* src/WelcomePage.css */
+
+.welcome-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-color: #b3cde3; /* Same background color */
+    color: #000; /* Text color */
+}
+
+.welcome-container h1 {
+    color: #005b96;
+    font-size: 3em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.welcome-container p {
+    font-size: 1.2em;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.welcome-container button {
+    padding: 15px 30px;
+    font-size: 1.2em;
+    background-color: #005b96;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.welcome-container button:hover {
+    background-color: #003f63; /* Darken button color on hover */
+}
+
+.welcome-container button:focus {
+    outline: none;
+    box-shadow: 0 0 5px 2px rgba(0, 91, 150, 0.5); /* Adds focus ring */
+}
+
+/* Optional additional styling */
+.welcome-container {
+    padding: 0 20px; /* Padding for smaller screens */
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+    border-radius: 10px;
+}
