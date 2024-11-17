@@ -1,13 +1,16 @@
-/* src/WelcomePage.css */
-
 .welcome-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100vh;
-    background-color: #b3cde3; /* Same background color */
-    color: #000; /* Text color */
+    background-color: #b3cde3;
+    color: #000;
+    position: relative;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
 }
 
 .welcome-container h1 {
@@ -17,10 +20,24 @@
     margin-bottom: 20px;
 }
 
-.welcome-container p {
-    font-size: 1.2em;
-    margin-bottom: 30px;
+.welcome-container .slideshow {
+    margin: 20px 0;
+    width: 100%;
+    max-width: 400px;
     text-align: center;
+}
+
+.welcome-container .slideshow img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.welcome-container .slideshow p {
+    font-size: 1.2em;
+    color: #003f63;
+    font-style: italic;
 }
 
 .welcome-container button {
@@ -35,18 +52,24 @@
 }
 
 .welcome-container button:hover {
-    background-color: #003f63; /* Darken button color on hover */
+    background-color: #003f63;
 }
 
-.welcome-container button:focus {
-    outline: none;
-    box-shadow: 0 0 5px 2px rgba(0, 91, 150, 0.5); /* Adds focus ring */
+.welcome-container .login-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: #fff;
+    color: #005b96;
+    border: 2px solid #005b96;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Optional additional styling */
-.welcome-container {
-    padding: 0 20px; /* Padding for smaller screens */
-    text-align: center;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow */
-    border-radius: 10px;
+.welcome-container .login-button:hover {
+    background-color: #005b96;
+    color: #fff;
 }
