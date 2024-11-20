@@ -51,7 +51,7 @@ const LoginPage = () => {
         // Retrieve saved credentials from local storage
         const savedCredentials = JSON.parse(localStorage.getItem('userCredentials')) || {};
 
-        if (savedCredentials[email] && savedCredentials[email] === password) {
+        if (savedCredentials[email] && savedCredentials[email].password === password) {
             alert('Login successful!');
             navigate('/tasks'); // Navigate to TaskListifyPage
         } else {
