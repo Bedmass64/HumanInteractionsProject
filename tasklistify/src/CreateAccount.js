@@ -118,6 +118,7 @@ const CreateAccount = () => {
 
     const handleEmailChange = (e) => {
         setEmail(e.target.value);
+        console.log("Email:", e.target.value); // Debugging email state
     };
 
     const handlePasswordChange = (e) => {
@@ -129,7 +130,8 @@ const CreateAccount = () => {
     };
 
     const handleSubmit = (e) => {
-        e.preventDefault();
+        e.preventDefault()
+        console.log("Form Submission Data:", { email, password, confirmPassword });;
 
         // Validation
         if (!email || !password || !confirmPassword) {
