@@ -1,4 +1,4 @@
-.welcome-container {
+/* .welcome-container {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -70,6 +70,86 @@
 }
 
 .welcome-container .login-button:hover {
+    background-color: #005b96;
+    color: #fff;
+} */
+.welcome-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-color: #b3cde3;
+    color: #000;
+    position: relative;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.welcome-container h1 {
+    color: #005b96;
+    font-size: 3em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.welcome-container .slideshow {
+    margin: 20px 0;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.welcome-container .slideshow img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.welcome-container .slideshow p {
+    font-size: 1.2em;
+    color: #003f63;
+    font-style: italic;
+}
+
+.welcome-container button {
+    padding: 15px 30px;
+    font-size: 1.2em;
+    background-color: #005b96;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.welcome-container button:hover {
+    background-color: #003f63;
+}
+
+.welcome-container .auth-buttons {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.auth-buttons button {
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: #fff;
+    color: #005b96;
+    border: 2px solid #005b96;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.auth-buttons button:hover {
     background-color: #005b96;
     color: #fff;
 }
