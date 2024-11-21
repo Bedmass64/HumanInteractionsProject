@@ -93,6 +93,68 @@ export default function TaskListifyPage() {
         link.click();
     };
 
+    // Quick Print Handler
+    const handleQuickPrint = () => {
+        const printContent = document.getElementById("task-list-section").innerHTML;
+
+        // Create a new window and set its content
+        const printWindow = window.open("", "_blank");
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            margin: 0;
+                            padding: 20px;
+                            color: #000;
+                        }
+                        @page {
+                            margin: 20mm;
+                        }
+                        h1 {
+                            text-align: center;
+                            color: #005b96;
+                        }
+                        .day-box {
+                            padding: 10px;
+                            border: 1px solid #005b96;
+                            border-radius: 5px;
+                            background-color: #e1f5fe;
+                            margin-bottom: 15px;
+                        }
+                        .event-box {
+                            padding: 10px;
+                            border: 1px solid #000;
+                            border-radius: 5px;
+                            background-color: #fff;
+                            margin-bottom: 10px;
+                        }
+                        .event-section {
+                            margin: 5px 0;
+                        }
+                        .event-section label {
+                            font-weight: bold;
+                        }
+                        .checkbox {
+                            transform: scale(1.5);
+                            margin-right: 10px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>Task List by Day</h1>
+                    ${printContent}
+                </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    };
+
     // Handle Times Change
     const handleTimesChange = (value) => {
         setTimesPerDay(value);
@@ -188,7 +250,7 @@ export default function TaskListifyPage() {
                                     <label key={day} style={{ marginRight: "10px", color: "#000" }}>
                                         <input
                                             type="checkbox"
-                                            style={{transform: "scale(1.25)", }}
+                                            style={{ transform: "scale(1.25)" }}
                                             checked={manualDays.includes(day)}
                                             onChange={() =>
                                                 setManualDays((prev) =>
@@ -209,10 +271,9 @@ export default function TaskListifyPage() {
                         <label>Would You Like to Select a Time? / Add a note to event?</label>
                         <input
                             type="checkbox"
-                            
                             checked={showTime}
                             onChange={() => setShowTime(!showTime)}
-                            style={{ marginLeft: "10px", transform: "scale(1.5)", }}
+                            style={{ marginLeft: "10px", transform: "scale(1.5)" }}
                         />
                     </div>
 
@@ -320,7 +381,7 @@ export default function TaskListifyPage() {
                 </button>
 
                 {/* Task List by Day */}
-                <div style={{ marginTop: "30px" }}>
+                <div id="task-list-section" style={{ marginTop: "30px" }}>
                     <h2 style={{ textAlign: "center", color: "#005b96" }}>Task List by Day</h2>
                     <div
                         style={{
@@ -393,7 +454,7 @@ export default function TaskListifyPage() {
 
                 {/* Settings */}
                 <button
-                    onClick={() => setShowSettings((prev) => !prev)}
+                    onClick={() => setShowSettings(!showSettings)}
                     style={{
                         width: "100%",
                         padding: "12px",
@@ -457,7 +518,7 @@ export default function TaskListifyPage() {
                                 <label key={day} style={{ marginRight: "10px", color: "#000" }}>
                                     <input
                                         type="checkbox"
-                                        style={{transform: "scale(1.25)", }}
+                                        style={{ transform: "scale(1.25)" }}
                                         checked={hiddenDays.includes(day)}
                                         onChange={() => toggleHiddenDay(day)}
                                     />
@@ -479,6 +540,22 @@ export default function TaskListifyPage() {
                             }}
                         >
                             Download Task List
+                        </button>
+
+
+                        <button
+                            onClick={handleQuickPrint}
+                            style={{
+                                width: "100%",
+                                padding: "10px",
+                                marginTop: "10px",
+                                backgroundColor: "#003f69",
+                                color: "#fff",
+                                borderRadius: "5px",
+                                border: "none",
+                            }}
+                        >
+                            Quick Print Task List
                         </button>
                     </div>
                 )}
