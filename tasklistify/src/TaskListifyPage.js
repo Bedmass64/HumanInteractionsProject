@@ -71,27 +71,14 @@ export default function TaskListifyPage() {
         setShowTime(false);
     };
 
-    // Download Tasks
-    const downloadTasks = () => {
-        const formattedTasks = tasks
-            .map((task) =>
-                task.days
-                    .map((day) => {
-                        const taskDetails = task.taskTimes
-                            .map(({ start, note }) => `${start}${note ? ` - ${note}` : ""}`)
-                            .join(", ");
-                        return `${day}: ${task.taskName}${taskDetails ? ` - ${taskDetails}` : ""}`;
-                    })
-                    .join("\n")
-            )
-            .join("\n\n");
-
-        const blob = new Blob([formattedTasks], { type: "text/plain" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "tasklist.txt";
-        link.click();
-    };
+        // Download Tasks as JSON
+        const downloadTasks = () => {
+            const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: "application/json" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "tasks.json";
+            link.click();
+        };
 
     // Quick Print Handler
     const handleQuickPrint = () => {
@@ -155,6 +142,29 @@ export default function TaskListifyPage() {
         printWindow.close();
     };
 
+        const uploadTasksJSON = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+        
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const uploadedTasks = JSON.parse(e.target.result);
+                    if (Array.isArray(uploadedTasks)) {
+                        // setTasks((prevTasks) => [...prevTasks, ...uploadedTasks]); // Merge tasks
+                        setTasks(uploadedTasks); // Overwrite tasks
+                        alert("Tasks uploaded successfully!");
+                    } else {
+                        alert("Invalid file format. Please upload a valid JSON file.");
+                    }
+                } catch (error) {
+                    alert("Error parsing the JSON file. Please ensure it is correctly formatted.");
+                }
+            };
+            reader.readAsText(file);
+        };
+            
+   
     // Handle Times Change
     const handleTimesChange = (value) => {
         setTimesPerDay(value);
@@ -557,6 +567,30 @@ export default function TaskListifyPage() {
                         >
                             Quick Print Task List
                         </button>
+                        <label
+                            style={{
+                                display: "block",
+                                width: "100%",
+                                padding: "10px",
+                                marginTop: "20px",
+                                backgroundColor: "#003f69",
+                                color: "#fff",
+                                textAlign: "center",
+                                borderRadius: "5px",
+                                border: "none",
+                                cursor: "pointer",
+                            }}
+                        >
+                            Upload Task List
+                            <input
+                                type="file"
+                                accept=".json"
+                                onChange={uploadTasksJSON}
+                                style={{
+                                    display: "none", 
+                                }}
+                            />
+                        </label>
                     </div>
                 )}
             </div>
