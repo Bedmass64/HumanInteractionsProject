@@ -64,6 +64,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './WelcomePage.css';
+import exampleScreenshot from "./images/Example_Screenshot.png";
 
 const WelcomePage = () => {
     const navigate = useNavigate();
@@ -79,13 +80,13 @@ const WelcomePage = () => {
     const slides = [
         ...reviews,
         inspirationalQuote,
-        { type: "image", src: "/path-to-your-example-screenshot.png" },
+        { type: "image", src: exampleScreenshot},
     ];
 
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentSlide((prev) => (prev + 1) % slides.length);
-        }, 3000); // Change slide every 3 seconds
+        }, 5000); // Change slide every 5 seconds
         return () => clearInterval(interval);
     }, [slides.length]);
 
