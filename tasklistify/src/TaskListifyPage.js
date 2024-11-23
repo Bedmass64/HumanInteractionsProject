@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Task from "./Task";
 import TaskListify from "./TaskListify";
 import TaskList from "./TaskList";
 
@@ -12,14 +11,17 @@ export default function TaskListifyPage() {
   const [eventDays, setEventDays] = useState("everyday");
   const [manualDays, setManualDays] = useState([]);
   const [showTime, setShowTime] = useState(false);
-  const [timesOfTheDay, setTimesOfTheDay] = useState([{ hour: "", minute: "", amPm: "", note: "" }]);
+  const [timesOfTheDay, setTimesOfTheDay] = useState([
+    { hour: "", minute: "", amPm: "", note: "" },
+  ]);
   const [layout, setLayout] = useState("row");
   const [tasks, setTasks] = useState([]);
-  const [editMode, setEditMode] = useState(false);
+  const [removeMode, setRemoveMode] = useState(false);
   const [firstDayOfWeek, setFirstDayOfWeek] = useState("Sunday");
   const [hiddenDays, setHiddenDays] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [modifiedTasks, setModifiedTasks] = useState([]);
 
   const navigate = useNavigate();
 
@@ -60,6 +62,15 @@ export default function TaskListifyPage() {
     localStorage.setItem("hiddenDays", JSON.stringify(hiddenDays));
   }, [hiddenDays]);
 
+  // Handle Remove Mode toggle
+  useEffect(() => {
+    if (removeMode) {
+      setModifiedTasks(JSON.parse(JSON.stringify(tasks))); // Deep copy
+    } else {
+      setModifiedTasks([]);
+    }
+  }, [removeMode, tasks]);
+
   // Utility: Get Final Times
   const getFinalTimes = () => {
     return timesOfTheDay.map(({ hour, minute, amPm, note }) => {
@@ -94,11 +105,20 @@ export default function TaskListifyPage() {
 
     const taskTimes = getFinalTimes();
 
+    // Create taskTimesPerDay
+    const taskTimesPerDay = {};
     days.forEach((day) => {
-      taskListify.addTaskToDays([day], new Task(taskName, timesPerDay, taskTimes));
+      taskTimesPerDay[day] = JSON.parse(JSON.stringify(taskTimes)); // Deep copy
     });
 
-    setTasks((prevTasks) => [...prevTasks, { taskName, timesPerDay, taskTimes, days }]);
+    const newTask = {
+      id: Date.now(),
+      taskName,
+      days,
+      taskTimesPerDay,
+    };
+
+    setTasks((prevTasks) => [...prevTasks, newTask]);
     resetForm();
   };
 
@@ -113,7 +133,9 @@ export default function TaskListifyPage() {
 
   // Download Tasks as JSON
   const downloadTasks = () => {
-    const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(tasks, null, 2)], {
+      type: "application/json",
+    });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = "tasks.json";
@@ -156,6 +178,7 @@ export default function TaskListifyPage() {
               border-radius: 5px;
               background-color: #fff;
               margin-bottom: 10px;
+              position: relative;
             }
             .event-section {
               margin: 5px 0;
@@ -207,7 +230,9 @@ export default function TaskListifyPage() {
   // Handle Times Change
   const handleTimesChange = (value) => {
     setTimesPerDay(value);
-    setTimesOfTheDay(Array.from({ length: value }, () => ({ hour: "", minute: "", amPm: "", note: "" })));
+    setTimesOfTheDay(
+      Array.from({ length: value }, () => ({ hour: "", minute: "", amPm: "", note: "" }))
+    );
   };
 
   // Handle Time Change
@@ -223,7 +248,9 @@ export default function TaskListifyPage() {
       const minute = parseInt(value, 10);
       updatedTimes[index].minute = isNaN(minute)
         ? ""
-        : Math.min(Math.max(minute, 0), 59).toString().padStart(2, "0");
+        : Math.min(Math.max(minute, 0), 59)
+            .toString()
+            .padStart(2, "0");
     } else {
       updatedTimes[index][field] = value;
     }
@@ -250,29 +277,127 @@ export default function TaskListifyPage() {
   const handleShareTaskList = () => {
     if (!isLoggedIn) {
       alert("Please log in to share the task list.");
-      navigate('/login', { state: { from: '/share' } });
+      navigate("/login", { state: { from: "/share" } });
       return;
     } else {
-      navigate('/share');
+      navigate("/share");
     }
   };
 
+  // Handle Remove Task
+  const handleRemoveTask = (taskId, day) => {
+    setModifiedTasks((prevTasks) => {
+      return prevTasks
+        .map((task) => {
+          if (task.id === taskId && task.days.includes(day)) {
+            const updatedDays = task.days.filter((d) => d !== day);
+            if (updatedDays.length > 0) {
+              const updatedTaskTimesPerDay = { ...task.taskTimesPerDay };
+              delete updatedTaskTimesPerDay[day];
+              return { ...task, days: updatedDays, taskTimesPerDay: updatedTaskTimesPerDay };
+            } else {
+              return null; // Remove task completely if no days left
+            }
+          }
+          return task;
+        })
+        .filter(Boolean);
+    });
+  };
+
+  // Handle Remove Occurrence
+  const handleRemoveOccurrence = (taskId, day, occurrenceIndex) => {
+    setModifiedTasks((prevTasks) => {
+      return prevTasks
+        .map((task) => {
+          if (task.id === taskId && task.days.includes(day)) {
+            const updatedTaskTimes = [...task.taskTimesPerDay[day]];
+            updatedTaskTimes.splice(occurrenceIndex, 1);
+
+            if (updatedTaskTimes.length > 0) {
+              const updatedTaskTimesPerDay = {
+                ...task.taskTimesPerDay,
+                [day]: updatedTaskTimes,
+              };
+              return { ...task, taskTimesPerDay: updatedTaskTimesPerDay };
+            } else {
+              // If no times left for the day, remove the day from the task
+              const updatedDays = task.days.filter((d) => d !== day);
+              if (updatedDays.length > 0) {
+                const updatedTaskTimesPerDay = { ...task.taskTimesPerDay };
+                delete updatedTaskTimesPerDay[day];
+                return { ...task, days: updatedDays, taskTimesPerDay: updatedTaskTimesPerDay };
+              } else {
+                return null; // Remove task completely if no days left
+              }
+            }
+          }
+          return task;
+        })
+        .filter(Boolean);
+    });
+  };
+
+  // Handle Save Changes
+  const handleSaveChanges = () => {
+    setTasks(modifiedTasks);
+    setRemoveMode(false);
+    alert("Changes saved.");
+  };
+
   return (
-    <div style={{ backgroundColor: "#b3cde3", minHeight: "100vh", padding: "40px 0", color: "#000" }}>
-      <div style={{ maxWidth: "800px", margin: "0 auto", padding: "30px", backgroundColor: "#ffffffcc", borderRadius: "10px", boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)" }}>
-        <h1 style={{ color: "#005b96", textAlign: "center", fontSize: "2.5em", fontWeight: "bold", marginBottom: "20px" }}>
+    <div
+      style={{
+        backgroundColor: "#b3cde3",
+        minHeight: "100vh",
+        padding: "40px 0",
+        color: "#000",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "800px",
+          margin: "0 auto",
+          padding: "30px",
+          backgroundColor: "#ffffffcc",
+          borderRadius: "10px",
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+        }}
+      >
+        <h1
+          style={{
+            color: "#005b96",
+            textAlign: "center",
+            fontSize: "2.5em",
+            fontWeight: "bold",
+            marginBottom: "20px",
+          }}
+        >
           TaskListify
         </h1>
 
         {/* First Section */}
-        <div style={{ border: "1px solid #005b96", borderRadius: "10px", padding: "20px", marginBottom: "20px" }}>
+        <div
+          style={{
+            border: "1px solid #005b96",
+            borderRadius: "10px",
+            padding: "20px",
+            marginBottom: "20px",
+          }}
+        >
           <div style={{ marginBottom: "15px" }}>
             <label>Event Name:</label>
             <input
               type="text"
               value={taskName}
               onChange={(e) => setTaskName(e.target.value)}
-              style={{ width: "97%", marginTop: "5px", padding: "10px", border: "1px solid #005b96", borderRadius: "5px" }}
+              style={{
+                width: "97%",
+                marginTop: "5px",
+                padding: "10px",
+                border: "1px solid #005b96",
+                borderRadius: "5px",
+              }}
             />
           </div>
 
@@ -281,7 +406,13 @@ export default function TaskListifyPage() {
             <select
               value={timesPerDay}
               onChange={(e) => handleTimesChange(Number(e.target.value))}
-              style={{ width: "100%", marginTop: "5px", padding: "10px", border: "1px solid #005b96", borderRadius: "5px" }}
+              style={{
+                width: "100%",
+                marginTop: "5px",
+                padding: "10px",
+                border: "1px solid #005b96",
+                borderRadius: "5px",
+              }}
             >
               {[...Array(7)].map((_, i) => (
                 <option key={i + 1} value={i + 1}>
@@ -296,7 +427,13 @@ export default function TaskListifyPage() {
             <select
               value={eventDays}
               onChange={(e) => setEventDays(e.target.value)}
-              style={{ width: "100%", marginTop: "5px", padding: "10px", border: "1px solid #005b96", borderRadius: "5px" }}
+              style={{
+                width: "100%",
+                marginTop: "5px",
+                padding: "10px",
+                border: "1px solid #005b96",
+                borderRadius: "5px",
+              }}
             >
               <option value="everyday">Every Day</option>
               <option value="weekends">Weekends</option>
@@ -314,9 +451,7 @@ export default function TaskListifyPage() {
                       checked={manualDays.includes(day)}
                       onChange={() =>
                         setManualDays((prev) =>
-                          prev.includes(day)
-                            ? prev.filter((d) => d !== day)
-                            : [...prev, day]
+                          prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
                         )
                       }
                     />
@@ -340,7 +475,15 @@ export default function TaskListifyPage() {
           {showTime && (
             <div style={{ marginTop: "15px" }}>
               {timesOfTheDay.map((time, index) => (
-                <div key={index} style={{ display: "flex", alignItems: "flex-start", marginBottom: "15px", gap: "10px" }}>
+                <div
+                  key={index}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    marginBottom: "15px",
+                    gap: "10px",
+                  }}
+                >
                   <div style={{ flexGrow: 1 }}>
                     <div style={{ display: "flex", gap: "10px" }}>
                       <input
@@ -394,7 +537,7 @@ export default function TaskListifyPage() {
                       value={time.note}
                       onChange={(e) => handleTimeChange(index, "note", e.target.value)}
                       style={{
-                        width: "100%",
+                        width: "97.3%",
                         marginTop: "5px",
                         padding: "10px",
                         border: "1px solid #005b96",
@@ -425,7 +568,7 @@ export default function TaskListifyPage() {
           Add Task
         </button>
         <button
-          onClick={() => setEditMode(!editMode)}
+          onClick={() => setRemoveMode(!removeMode)}
           style={{
             width: "100%",
             padding: "12px",
@@ -437,15 +580,36 @@ export default function TaskListifyPage() {
             fontSize: "1em",
           }}
         >
-          {editMode ? "Exit Edit Mode" : "Edit Tasks"}
+          {removeMode ? "Untoggle Remove Task" : "Remove Tasks"}
         </button>
+
+        {/* Save Changes Button */}
+        {removeMode && (
+          <button
+            onClick={handleSaveChanges}
+            style={{
+              width: "100%",
+              padding: "12px",
+              marginTop: "10px",
+              backgroundColor: "#005b96",
+              color: "#fff",
+              border: "none",
+              borderRadius: "5px",
+              fontSize: "1em",
+            }}
+          >
+            Save Removed Tasks
+          </button>
+        )}
 
         {/* Task List by Day */}
         <TaskList
-          tasks={tasks}
+          tasks={removeMode ? modifiedTasks : tasks}
           layout={layout}
           getOrderedDaysOfWeek={getOrderedDaysOfWeek}
-          taskListify={taskListify}
+          removeMode={removeMode}
+          onRemoveTask={handleRemoveTask}
+          onRemoveOccurrence={handleRemoveOccurrence}
         />
 
         {/* Settings */}
@@ -473,7 +637,7 @@ export default function TaskListifyPage() {
               marginTop: "10px",
             }}
           >
-            <label>Display Layout:</label>      
+            <label>Display Layout:</label>
             <select
               value={layout}
               onChange={(e) => setLayout(e.target.value)}
@@ -489,7 +653,7 @@ export default function TaskListifyPage() {
               <option value="column">Column</option>
             </select>
 
-            <div style={{marginTop: "15px" }}/>
+            <div style={{ marginTop: "15px" }} />
             <label>First Day of the Week:</label>
             <select
               value={firstDayOfWeek}
@@ -508,7 +672,7 @@ export default function TaskListifyPage() {
                 </option>
               ))}
             </select>
-            <div style={{marginTop: "15px" }}/>
+            <div style={{ marginTop: "15px" }} />
             <label>Hide Days of the Week:</label>
             <div style={{ display: "flex", flexWrap: "wrap", marginTop: "5px" }}>
               {taskListify.daysOfWeek.map((day) => (
@@ -523,9 +687,12 @@ export default function TaskListifyPage() {
                 </label>
               ))}
             </div>
-            
-            <div style={{marginTop: "15px" }}/>
-            <label>Download Task list as a JS File so you can reuse it in the future as a template for making new lists:</label>
+
+            <div style={{ marginTop: "15px" }} />
+            <label>
+              Download Task list as a JS File so you can reuse it in the future as a template for
+              making new lists:
+            </label>
             <button
               onClick={downloadTasks}
               style={{
@@ -541,8 +708,10 @@ export default function TaskListifyPage() {
               Download Task List
             </button>
 
-            <div style={{marginTop: "15px" }}/>
-            <label>Upload Task list lets you import JS Files to work from an existing list template:</label>
+            <div style={{ marginTop: "15px" }} />
+            <label>
+              Upload Task list lets you import JS Files to work from an existing list template:
+            </label>
 
             <label
               style={{
@@ -564,13 +733,16 @@ export default function TaskListifyPage() {
                 accept=".json"
                 onChange={uploadTasksJSON}
                 style={{
-                  display: "none", 
+                  display: "none",
                 }}
               />
             </label>
 
-            <div style={{marginTop: "15px" }}/>
-            <label>Quick Print gives the option to save list as a PDF for viewing, or send it automatically to print screen:</label>
+            <div style={{ marginTop: "15px" }} />
+            <label>
+              Quick Print gives the option to save list as a PDF for viewing, or send it
+              automatically to print screen:
+            </label>
             <button
               onClick={handleQuickPrint}
               style={{
@@ -600,7 +772,7 @@ export default function TaskListifyPage() {
               </label>
               {!isLoggedIn ? (
                 <button
-                  onClick={() => navigate('/login', { state: { from: '/share' } })}
+                  onClick={() => navigate("/login", { state: { from: "/share" } })}
                   style={{
                     width: "100%",
                     padding: "10px",
@@ -635,19 +807,19 @@ export default function TaskListifyPage() {
             {isLoggedIn && (
               <button
                 onClick={() => {
-                  localStorage.setItem('isLoggedIn', 'false');
+                  localStorage.setItem("isLoggedIn", "false");
                   setIsLoggedIn(false);
-                  alert('You have been logged out.');
+                  alert("You have been logged out.");
                 }}
                 style={{
-                  width: '100%',
-                  padding: '12px',
-                  marginTop: '10px',
-                  backgroundColor: '#005b96',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '5px',
-                  fontSize: '1em',
+                  width: "100%",
+                  padding: "12px",
+                  marginTop: "10px",
+                  backgroundColor: "#005b96",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "5px",
+                  fontSize: "1em",
                 }}
               >
                 Log Out
