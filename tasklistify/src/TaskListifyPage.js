@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import TaskListify from "./TaskListify";
 import TaskList from "./TaskList";
+import axios from 'axios'; // Import axios for API calls
 
 export default function TaskListifyPage() {
   const [taskName, setTaskName] = useState("");
@@ -199,11 +200,74 @@ export default function TaskListifyPage() {
       </html>
     `);
 
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  };
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    };
+
+
+    const handleSetAlerts = async () => {
+        if (!isLoggedIn) {
+            alert('You need to log in or create an account to set up alerts.');
+            return;
+        }
+    
+        // Retrieve user's phone number from localStorage
+        const existingCredentials = JSON.parse(localStorage.getItem('userCredentials'));
+        const userEmail = Object.keys(existingCredentials)[0]; // Assuming the first user is the current one
+        const userPhone = existingCredentials[userEmail]?.phone;
+    
+        if (!userPhone) {
+            alert('Phone number not found. Please update your account with a phone number.');
+            return;
+        }
+    
+        console.log("Sending alert to phone:", userPhone); // Debug log
+        console.log("Message:", "You have successfully set up alerts for your tasks!"); // Debug log
+    
+        try {
+            // Replace with your backend API endpoint
+            const response = await axios.post('http://localhost:5000/send-alert', {
+                taskName: "Alert Setup",  // Example task name
+                userPhone,                // Pass the user's phone number
+                message: 'You have successfully set up alerts for your tasks!'
+            });
+    
+            console.log("API Response:", response); // Debug log
+    
+            if (response.status >= 200 && response.status < 300) {
+                alert('Alerts have been successfully set up on your mobile device.');
+            } else {
+                alert('Failed to set up alerts. Please try again later.');
+            }
+        } catch (error) {
+            alert('An error occurred while setting up alerts. Please try again later.');
+            console.error('Error:', error); // Debug log
+        }
+    };
+    
+    
+    // Add Alert Button
+    const renderAlertButton = () => {
+        return (
+            <button
+                onClick={handleSetAlerts}
+                style={{
+                    width: "100%",
+                    padding: "12px",
+                    marginTop: "15px",
+                    backgroundColor: "#005b96",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "5px",
+                    fontSize: "1em",
+                }}
+            >
+                Set Up Mobile Alerts
+            </button>
+        );
+    };
 
   // Upload Tasks JSON
   const uploadTasksJSON = (event) => {
@@ -567,6 +631,7 @@ export default function TaskListifyPage() {
         >
           Add Task
         </button>
+                {renderAlertButton()}
         <button
           onClick={() => setRemoveMode(!removeMode)}
           style={{
