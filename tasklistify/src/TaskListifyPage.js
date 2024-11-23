@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Task from "./Task";
 import TaskListify from "./TaskListify";
+import axios from 'axios'; // Import axios for API calls
 
 export default function TaskListifyPage() {
     const [taskName, setTaskName] = useState("");
@@ -17,6 +18,8 @@ export default function TaskListifyPage() {
     const [firstDayOfWeek, setFirstDayOfWeek] = useState("Sunday");
     const [hiddenDays, setHiddenDays] = useState([]);
     const [showSettings, setShowSettings] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('userCredentials') ? true : false);
+    const [userPhone, setUserPhone] = useState(null);
 
     const taskListify = new TaskListify();
 
@@ -71,14 +74,14 @@ export default function TaskListifyPage() {
         setShowTime(false);
     };
 
-        // Download Tasks as JSON
-        const downloadTasks = () => {
-            const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: "application/json" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "tasks.json";
-            link.click();
-        };
+    // Download Tasks as JSON
+    const downloadTasks = () => {
+        const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: "application/json" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "tasks.json";
+        link.click();
+    };
 
     // Quick Print Handler
     const handleQuickPrint = () => {
@@ -142,29 +145,90 @@ export default function TaskListifyPage() {
         printWindow.close();
     };
 
-        const uploadTasksJSON = (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-        
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const uploadedTasks = JSON.parse(e.target.result);
-                    if (Array.isArray(uploadedTasks)) {
-                        // setTasks((prevTasks) => [...prevTasks, ...uploadedTasks]); // Merge tasks
-                        setTasks(uploadedTasks); // Overwrite tasks
-                        alert("Tasks uploaded successfully!");
-                    } else {
-                        alert("Invalid file format. Please upload a valid JSON file.");
-                    }
-                } catch (error) {
-                    alert("Error parsing the JSON file. Please ensure it is correctly formatted.");
+
+    const handleSetAlerts = async () => {
+        if (!isLoggedIn) {
+            alert('You need to log in or create an account to set up alerts.');
+            return;
+        }
+    
+        // Retrieve user's phone number from localStorage
+        const existingCredentials = JSON.parse(localStorage.getItem('userCredentials'));
+        const userEmail = Object.keys(existingCredentials)[0]; // Assuming the first user is the current one
+        const userPhone = existingCredentials[userEmail]?.phone;
+    
+        if (!userPhone) {
+            alert('Phone number not found. Please update your account with a phone number.');
+            return;
+        }
+    
+        console.log("Sending alert to phone:", userPhone); // Debug log
+        console.log("Message:", "You have successfully set up alerts for your tasks!"); // Debug log
+    
+        try {
+            // Replace with your backend API endpoint
+            const response = await axios.post('http://localhost:5000/send-alert', {
+                taskName: "Alert Setup",  // Example task name
+                userPhone,                // Pass the user's phone number
+                message: 'You have successfully set up alerts for your tasks!'
+            });
+    
+            console.log("API Response:", response); // Debug log
+    
+            if (response.status >= 200 && response.status < 300) {
+                alert('Alerts have been successfully set up on your mobile device.');
+            } else {
+                alert('Failed to set up alerts. Please try again later.');
+            }
+        } catch (error) {
+            alert('An error occurred while setting up alerts. Please try again later.');
+            console.error('Error:', error); // Debug log
+        }
+    };
+    
+    
+    // Add Alert Button
+    const renderAlertButton = () => {
+        return (
+            <button
+                onClick={handleSetAlerts}
+                style={{
+                    width: "100%",
+                    padding: "12px",
+                    marginTop: "15px",
+                    backgroundColor: "#005b96",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "5px",
+                    fontSize: "1em",
+                }}
+            >
+                Set Up Mobile Alerts
+            </button>
+        );
+    };
+
+    const uploadTasksJSON = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+    
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const uploadedTasks = JSON.parse(e.target.result);
+                if (Array.isArray(uploadedTasks)) {
+                    setTasks(uploadedTasks); // Overwrite tasks
+                    alert("Tasks uploaded successfully!");
+                } else {
+                    alert("Invalid file format. Please upload a valid JSON file.");
                 }
-            };
-            reader.readAsText(file);
+            } catch (error) {
+                alert("Error parsing the JSON file. Please ensure it is correctly formatted.");
+            }
         };
-            
-   
+        reader.readAsText(file);
+    };
+
     // Handle Times Change
     const handleTimesChange = (value) => {
         setTimesPerDay(value);
@@ -374,6 +438,7 @@ export default function TaskListifyPage() {
                 >
                     Add Task
                 </button>
+                {renderAlertButton()}
                 <button
                     onClick={() => setEditMode(!editMode)}
                     style={{
@@ -552,7 +617,6 @@ export default function TaskListifyPage() {
                             Download Task List
                         </button>
 
-
                         <button
                             onClick={handleQuickPrint}
                             style={{
@@ -576,7 +640,7 @@ export default function TaskListifyPage() {
                                 backgroundColor: "#003f69",
                                 color: "#fff",
                                 textAlign: "center",
-                                borderRadius: "5px",
+                                borderRadius: "5px",  
                                 border: "none",
                                 cursor: "pointer",
                             }}
