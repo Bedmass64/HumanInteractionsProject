@@ -134,6 +134,7 @@ const WelcomePage = () => {
 
     const inspirationalQuotes = [
         '"Stay focused and never give up on your goals!" - Scooby Doo',
+        '"The problem is not the problem, the problem is your attitude about the problem." - Captain Jack Sparrow',
         '"Dream big, start small, but most importantly, start." - Winnie the Pooh',
         '"Progress over perfection." - Scibbidy Doo Bop',
     ];
