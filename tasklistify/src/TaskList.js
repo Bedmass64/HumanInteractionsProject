@@ -107,9 +107,15 @@ const TaskList = ({
                       </button>
                     )}
                     <div style={{ display: "flex", alignItems: "center" }}>
+                      <strong>{task.taskName}</strong>
                       {task.priority && (
-                        <div style={{ display: "flex", alignItems: "center", marginRight: "5px" }}>
-                          <span>{}</span>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            marginLeft: "5px",
+                          }}
+                        >
                           <div
                             style={{
                               width: "10px",
@@ -121,56 +127,58 @@ const TaskList = ({
                                   : task.priority === "Medium"
                                   ? "yellow"
                                   : "green",
-                              marginLeft: "5px",
                             }}
                           ></div>
                         </div>
                       )}
-                      <strong>{task.taskName}</strong>
                     </div>
                     <div>
-                      {task.taskTimesPerDay[day].map(({ start, note }, occurrenceIndex) => (
-                        <div
-                          key={occurrenceIndex}
-                          style={{
-                            display: "flex",
-                            alignItems: start && note ? "center" : "flex-start",
-                            gap: "10px",
-                            marginTop: "5px",
-                            position: "relative",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
+                      {task.taskTimesPerDay[day].map(
+                        ({ start, note }, occurrenceIndex) => (
+                          <div
+                            key={occurrenceIndex}
                             style={{
-                              alignSelf: start && note ? "center" : "flex-start",
-                              transform: "scale(1.5)",
+                              display: "flex",
+                              alignItems: start && note ? "center" : "flex-start",
+                              gap: "10px",
+                              marginTop: "5px",
+                              position: "relative",
                             }}
-                          />
-                          <div>
-                            {start && <div>{start}</div>}
-                            {note && <div>{note}</div>}
-                          </div>
-                          {removeMode && (
-                            <button
-                              onClick={() => onRemoveOccurrence(task.id, day, occurrenceIndex)}
+                          >
+                            <input
+                              type="checkbox"
                               style={{
-                                backgroundColor: "#fff",
-                                border: "1px solid #000",
-                                borderRadius: "50%",
-                                width: "20px",
-                                height: "20px",
-                                lineHeight: "18px",
-                                textAlign: "center",
-                                cursor: "pointer",
-                                marginLeft: "auto",
+                                alignSelf: start && note ? "center" : "flex-start",
+                                transform: "scale(1.5)",
                               }}
-                            >
-                              -
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                            />
+                            <div>
+                              {start && <div>{start}</div>}
+                              {note && <div>{note}</div>}
+                            </div>
+                            {removeMode && (
+                              <button
+                                onClick={() =>
+                                  onRemoveOccurrence(task.id, day, occurrenceIndex)
+                                }
+                                style={{
+                                  backgroundColor: "#fff",
+                                  border: "1px solid #000",
+                                  borderRadius: "50%",
+                                  width: "20px",
+                                  height: "20px",
+                                  lineHeight: "18px",
+                                  textAlign: "center",
+                                  cursor: "pointer",
+                                  marginLeft: "auto",
+                                }}
+                              >
+                                -
+                              </button>
+                            )}
+                          </div>
+                        )
+                      )}
                     </div>
                   </li>
                 ))}
