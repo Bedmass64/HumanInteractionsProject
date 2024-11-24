@@ -2035,7 +2035,8 @@ export default function TaskListifyPage() {
               </label>
               {!isLoggedIn ? (
                 <button
-                  onClick={() => navigate("/login", { state: { from: "/share" } })}
+                  // onClick={() => navigate("/login", { state: { from: "/share" } })}
+                  onClick={() => navigate("/login")}
                   style={{
                     width: "100%",
                     padding: "10px",
