@@ -7,7 +7,7 @@
 
 // export default function TaskListifyPage() {
 //   const [taskName, setTaskName] = useState("");
-//   const [timesPerDay, setTimesPerDay] = useState(1);
+//   const [dailyOccurences, setDailyOccurences] = useState(1);
 //   const [eventDays, setEventDays] = useState("everyday");
 //   const [manualDays, setManualDays] = useState([]);
 //   const [showTime, setShowTime] = useState(false);
@@ -22,6 +22,9 @@
 //   const [showSettings, setShowSettings] = useState(false);
 //   const [isLoggedIn, setIsLoggedIn] = useState(false);
 //   const [modifiedTasks, setModifiedTasks] = useState([]);
+
+//   const [showTaskNameRequired, setShowTaskNameRequired] = useState(true); // Initially show required field
+//   const [requiredFields, setRequiredFields] = useState([]);
 
 //   const navigate = useNavigate();
 
@@ -74,11 +77,6 @@
 //   // Utility: Get Final Times
 //   const getFinalTimes = () => {
 //     return timesOfTheDay.map(({ hour, minute, amPm, note }) => {
-//       if ((hour || minute) && !amPm) {
-//         alert("Please select AM or PM.");
-//         throw new Error("AM/PM is required if hours or minutes are entered.");
-//       }
-
 //       const time =
 //         hour && minute && amPm
 //           ? `${hour.padStart(2, "0")}:${minute.padStart(2, "0")} ${amPm}`
@@ -89,8 +87,49 @@
 
 //   // Handle adding a task
 //   const handleAddTask = () => {
+//     let isValid = true;
+//     setRequiredFields([]);
+
 //     if (!taskName.trim()) {
-//       alert("Please enter a task name.");
+//       // Show required field indicator for task name
+//       setShowTaskNameRequired(true);
+//       isValid = false;
+//     } else {
+//       setShowTaskNameRequired(false);
+//     }
+
+//     // Validate times
+//     if (showTime) {
+//       const updatedRequiredFields = [...requiredFields];
+//       timesOfTheDay.forEach((time, index) => {
+//         const { hour, minute, amPm } = time;
+//         if (hour || minute || amPm) {
+//           // If any of the fields are filled, the others become required
+//           if (!hour) {
+//             isValid = false;
+//             if (!updatedRequiredFields.includes(`hour-${index}`)) {
+//               updatedRequiredFields.push(`hour-${index}`);
+//             }
+//           }
+//           if (!minute) {
+//             isValid = false;
+//             if (!updatedRequiredFields.includes(`minute-${index}`)) {
+//               updatedRequiredFields.push(`minute-${index}`);
+//             }
+//           }
+//           if (!amPm) {
+//             isValid = false;
+//             if (!updatedRequiredFields.includes(`amPm-${index}`)) {
+//               updatedRequiredFields.push(`amPm-${index}`);
+//             }
+//           }
+//         }
+//       });
+//       setRequiredFields(updatedRequiredFields);
+//     }
+
+//     if (!isValid) {
+//       alert("Please fill in all required fields.");
 //       return;
 //     }
 
@@ -125,10 +164,12 @@
 //   // Reset Form
 //   const resetForm = () => {
 //     setTaskName("");
-//     setTimesPerDay(1);
+//     setDailyOccurences(1);
 //     setManualDays([]);
 //     setTimesOfTheDay([{ hour: "", minute: "", amPm: "", note: "" }]);
 //     setShowTime(false);
+//     setShowTaskNameRequired(true); // Show required field again
+//     setRequiredFields([]);
 //   };
 
 //   // Download Tasks as JSON
@@ -144,7 +185,7 @@
 
 //   const handleQuickPrint = () => {
 //     const printContent = document.getElementById("task-list-section").innerHTML;
-  
+
 //     // Create a new window and set its content
 //     const printWindow = window.open("", "_blank");
 //     printWindow.document.write(`
@@ -212,13 +253,12 @@
 //         </body>
 //       </html>
 //     `);
-  
+
 //     printWindow.document.close();
 //     printWindow.focus();
 //     printWindow.print();
 //     printWindow.close();
 //   };
-  
 
 //   // Upload Tasks JSON
 //   const uploadTasksJSON = (event) => {
@@ -244,7 +284,7 @@
 
 //   // Handle Times Change
 //   const handleTimesChange = (value) => {
-//     setTimesPerDay(value);
+//     setDailyOccurences(value);
 //     setTimesOfTheDay(
 //       Array.from({ length: value }, () => ({ hour: "", minute: "", amPm: "", note: "" }))
 //     );
@@ -263,14 +303,48 @@
 //       const minute = parseInt(value, 10);
 //       updatedTimes[index].minute = isNaN(minute)
 //         ? ""
-//         : Math.min(Math.max(minute, 0), 59)
-//             .toString()
-//             .padStart(2, "0");
+//         : Math.min(Math.max(minute, 0), 59).toString();
 //     } else {
 //       updatedTimes[index][field] = value;
 //     }
 
 //     setTimesOfTheDay(updatedTimes);
+
+//     // Update required fields
+//     const updatedRequiredFields = [...requiredFields];
+//     const { hour, minute, amPm } = updatedTimes[index];
+
+//     if (hour || minute || amPm) {
+//       // If any field is filled, others become required
+//       if (!hour && !updatedRequiredFields.includes(`hour-${index}`)) {
+//         updatedRequiredFields.push(`hour-${index}`);
+//       } else if (hour && updatedRequiredFields.includes(`hour-${index}`)) {
+//         updatedRequiredFields.splice(updatedRequiredFields.indexOf(`hour-${index}`), 1);
+//       }
+
+//       if (!minute && !updatedRequiredFields.includes(`minute-${index}`)) {
+//         updatedRequiredFields.push(`minute-${index}`);
+//       } else if (minute && updatedRequiredFields.includes(`minute-${index}`)) {
+//         updatedRequiredFields.splice(updatedRequiredFields.indexOf(`minute-${index}`), 1);
+//       }
+
+//       if (!amPm && !updatedRequiredFields.includes(`amPm-${index}`)) {
+//         updatedRequiredFields.push(`amPm-${index}`);
+//       } else if (amPm && updatedRequiredFields.includes(`amPm-${index}`)) {
+//         updatedRequiredFields.splice(updatedRequiredFields.indexOf(`amPm-${index}`), 1);
+//       }
+//     } else {
+//       // If all fields are empty, remove from requiredFields
+//       ["hour", "minute", "amPm"].forEach((field) => {
+//         const fieldKey = `${field}-${index}`;
+//         const fieldIndex = updatedRequiredFields.indexOf(fieldKey);
+//         if (fieldIndex !== -1) {
+//           updatedRequiredFields.splice(fieldIndex, 1);
+//         }
+//       });
+//     }
+
+//     setRequiredFields(updatedRequiredFields);
 //   };
 
 //   // Toggle Hidden Day
@@ -281,11 +355,16 @@
 //   };
 
 //   // Get Ordered Days
-//   const getOrderedDaysOfWeek = () => {
+//   const getOrderedDays = () => {
 //     const days = taskListify.daysOfWeek;
 //     const firstDayIndex = days.indexOf(firstDayOfWeek);
 //     const orderedDays = [...days.slice(firstDayIndex), ...days.slice(0, firstDayIndex)];
-//     return orderedDays.filter((day) => !hiddenDays.includes(day));
+//     return orderedDays;
+//   };
+
+//   // Get Ordered Days for Task List
+//   const getOrderedDaysOfWeek = () => {
+//     return getOrderedDays().filter((day) => !hiddenDays.includes(day));
 //   };
 
 //   // Handle Sharing Task List
@@ -400,12 +479,19 @@
 //             marginBottom: "20px",
 //           }}
 //         >
-//           <div style={{ marginBottom: "15px" }}>
+//           <div style={{ marginBottom: "15px", position: "relative" }}>
 //             <label>Event Name:</label>
 //             <input
 //               type="text"
 //               value={taskName}
-//               onChange={(e) => setTaskName(e.target.value)}
+//               onChange={(e) => {
+//                 setTaskName(e.target.value);
+//                 if (e.target.value.trim()) {
+//                   setShowTaskNameRequired(false);
+//                 } else {
+//                   setShowTaskNameRequired(true);
+//                 }
+//               }}
 //               style={{
 //                 width: "97%",
 //                 marginTop: "5px",
@@ -414,12 +500,29 @@
 //                 borderRadius: "5px",
 //               }}
 //             />
+//             {showTaskNameRequired && (
+//               <div
+//                 style={{
+//                   position: "absolute",
+//                   top: "0px",
+//                   right: "0",
+//                   backgroundColor: "#ffdddd",
+//                   padding: "2px 5px",
+//                   borderRadius: "3px",
+//                   fontSize: "0.8em",
+//                   cursor: "default",
+//                 }}
+//                 title="Required Field"
+//               >
+//                 Req. Field
+//               </div>
+//             )}
 //           </div>
 
 //           <div style={{ marginBottom: "15px" }}>
-//             <label>Times per Day:</label>
+//             <label>Task Frequency:</label>
 //             <select
-//               value={timesPerDay}
+//               value={dailyOccurences}
 //               onChange={(e) => handleTimesChange(Number(e.target.value))}
 //               style={{
 //                 width: "100%",
@@ -489,62 +592,126 @@
 
 //           {showTime && (
 //             <div style={{ marginTop: "15px" }}>
-//               {timesOfTheDay.map((time, index) => (
-//                 <div
-//                   key={index}
-//                   style={{
-//                     display: "flex",
-//                     alignItems: "flex-start",
-//                     marginBottom: "15px",
-//                     gap: "10px",
-//                   }}
-//                 >
-//                   <div style={{ flexGrow: 1 }}>
-//                     <div style={{ display: "flex", gap: "10px" }}>
-//                       <input
-//                         type="number"
-//                         placeholder="HH"
-//                         value={time.hour}
-//                         min={1}
-//                         max={12}
-//                         onChange={(e) => handleTimeChange(index, "hour", e.target.value)}
-//                         style={{
-//                           width: "20%",
-//                           padding: "10px",
-//                           border: "1px solid #005b96",
-//                           borderRadius: "5px",
-//                           textAlign: "center",
-//                         }}
-//                       />
-//                       <input
-//                         type="number"
-//                         placeholder="MM"
-//                         value={time.minute}
-//                         min={0}
-//                         max={59}
-//                         onChange={(e) => handleTimeChange(index, "minute", e.target.value)}
-//                         style={{
-//                           width: "20%",
-//                           padding: "10px",
-//                           border: "1px solid #005b96",
-//                           borderRadius: "5px",
-//                           textAlign: "center",
-//                         }}
-//                       />
-//                       <select
-//                         value={time.amPm}
-//                         onChange={(e) => handleTimeChange(index, "amPm", e.target.value)}
-//                         style={{
-//                           width: "30%",
-//                           padding: "10px",
-//                           border: "1px solid #005b96",
-//                           borderRadius: "5px",
-//                         }}
-//                       >
-//                         <option value="">AM/PM</option>
-//                         <option value="AM">AM</option>
-//                         <option value="PM">PM</option>
-//                       </select>
+//               {timesOfTheDay.map((time, index) => {
+//                 const isHourRequired = requiredFields.includes(`hour-${index}`);
+//                 const isMinuteRequired = requiredFields.includes(`minute-${index}`);
+//                 const isAmPmRequired = requiredFields.includes(`amPm-${index}`);
+
+//                 return (
+//                   <div
+//                     key={index}
+//                     style={{
+//                       marginBottom: "15px",
+//                       position: "relative",
+//                     }}
+//                   >
+//                     <div style={{ display: "flex", gap: "40px" }}>
+//                       {/* Hour Input */}
+//                       <div style={{ position: "relative", width: "30%" }}>
+//                         <input
+//                           type="number"
+//                           placeholder="HH"
+//                           value={time.hour}
+//                           min={1}
+//                           max={12}
+//                           onChange={(e) => handleTimeChange(index, "hour", e.target.value)}
+//                           style={{
+//                             width: "100%",
+//                             padding: "10px",
+//                             border: "1px solid #005b96",
+//                             borderRadius: "5px",
+//                             textAlign: "center",
+//                           }}
+//                         />
+//                         {isHourRequired && (
+//                           <div
+//                             style={{
+//                               position: "absolute",
+//                               top: "-20px",
+//                               left: "0",
+//                               backgroundColor: "#ffdddd",
+//                               padding: "2px 5px",
+//                               borderRadius: "3px",
+//                               fontSize: "0.8em",
+//                               cursor: "default",
+//                             }}
+//                             title="Required Field"
+//                           >
+//                             Req. Field
+//                           </div>
+//                         )}
+//                       </div>
+
+//                       {/* Minute Input */}
+//                       <div style={{ position: "relative", width: "30%" }}>
+//                         <input
+//                           type="number"
+//                           placeholder="MM"
+//                           value={time.minute}
+//                           min={0}
+//                           max={59}
+//                           onChange={(e) => handleTimeChange(index, "minute", e.target.value)}
+//                           style={{
+//                             width: "100%",
+//                             padding: "10px",
+//                             border: "1px solid #005b96",
+//                             borderRadius: "5px",
+//                             textAlign: "center",
+//                           }}
+//                         />
+//                         {isMinuteRequired && (
+//                           <div
+//                             style={{
+//                               position: "absolute",
+//                               top: "-20px",
+//                               left: "0",
+//                               backgroundColor: "#ffdddd",
+//                               padding: "2px 5px",
+//                               borderRadius: "3px",
+//                               fontSize: "0.8em",
+//                               cursor: "default",
+//                             }}
+//                             title="Required Field"
+//                           >
+//                             Req. Field
+//                           </div>
+//                         )}
+//                       </div>
+
+//                       {/* AM/PM Select */}
+//                       <div style={{ position: "relative", width: "30%" }}>
+//                         <select
+//                           value={time.amPm}
+//                           onChange={(e) => handleTimeChange(index, "amPm", e.target.value)}
+//                           style={{
+//                             width: "100%",
+//                             padding: "10px",
+//                             border: "1px solid #005b96",
+//                             borderRadius: "5px",
+//                           }}
+//                         >
+//                           <option value="">AM/PM</option>
+//                           <option value="AM">AM</option>
+//                           <option value="PM">PM</option>
+//                         </select>
+//                         {isAmPmRequired && (
+//                           <div
+//                             style={{
+//                               position: "absolute",
+//                               top: "-20px",
+//                               left: "0",
+//                               backgroundColor: "#ffdddd",
+//                               padding: "2px 5px",
+//                               borderRadius: "3px",
+//                               fontSize: "0.8em",
+//                               cursor: "default",
+//                             }}
+//                             title="Required Field"
+//                           >
+//                             Req. Field
+//                           </div>
+//                         )}
+//                       </div>
 //                     </div>
 //                     <input
 //                       type="text"
@@ -560,8 +727,8 @@
 //                       }}
 //                     />
 //                   </div>
-//                 </div>
-//               ))}
+//                 );
+//               })}
 //             </div>
 //           )}
 //         </div>
@@ -690,11 +857,11 @@
 //             <div style={{ marginTop: "15px" }} />
 //             <label>Hide Days of the Week:</label>
 //             <div style={{ display: "flex", flexWrap: "wrap", marginTop: "5px" }}>
-//               {taskListify.daysOfWeek.map((day) => (
-//                 <label key={day} style={{ marginRight: "10px", color: "#000" }}>
+//               {getOrderedDays().map((day) => (
+//                 <label key={day} style={{ marginRight: "29.22px", color: "#000" }}>
 //                   <input
 //                     type="checkbox"
-//                     style={{ transform: "scale(1.25)" }}
+//                     style={{ transform: "scale(1.5)" }}
 //                     checked={hiddenDays.includes(day)}
 //                     onChange={() => toggleHiddenDay(day)}
 //                   />
@@ -705,19 +872,20 @@
 
 //             <div style={{ marginTop: "15px" }} />
 //             <label>
-//               Download Task list as a JSON File so you can reuse it in the future as a template for
-//               making new lists:
+//               Download Task list as a JSON File so you can reuse it in the future as a template for making
+//               new lists:
 //             </label>
 //             <button
 //               onClick={downloadTasks}
 //               style={{
 //                 width: "100%",
 //                 padding: "10px",
-//                 marginTop: "10px",
+//                 marginTop: "5px",
 //                 backgroundColor: "#003f69",
 //                 color: "#fff",
 //                 borderRadius: "5px",
 //                 border: "none",
+//                 fontSize: "15px", 
 //               }}
 //             >
 //               Download Task List
@@ -731,15 +899,16 @@
 //             <label
 //               style={{
 //                 display: "block",
-//                 width: "97.3%",
-//                 padding: "10px",
-//                 marginTop: "10px",
+//                 width: "98%",
+//                 padding: "7.5px",
+//                 marginTop: "5px",
 //                 backgroundColor: "#003f69",
 //                 color: "#fff",
 //                 textAlign: "center",
 //                 borderRadius: "5px",
 //                 border: "none",
 //                 cursor: "pointer",
+//                 fontSize: "15px", 
 //               }}
 //             >
 //               Upload Task List
@@ -755,32 +924,30 @@
 
 //             <div style={{ marginTop: "15px" }} />
 //             <label>
-//               Quick Print gives the option to save list as a PDF for viewing, or send it
-//               automatically to print screen:
+//               Quick Print gives the option to save list as a PDF for viewing, or send it automatically to
+//               print screen:
 //             </label>
 //             <button
 //               onClick={handleQuickPrint}
 //               style={{
 //                 width: "100%",
 //                 padding: "10px",
-//                 marginTop: "10px",
+//                 marginTop: "5px",
 //                 backgroundColor: "#003f69",
 //                 color: "#fff",
 //                 borderRadius: "5px",
 //                 border: "none",
+//                 fontSize: "15px", 
 //               }}
 //             >
 //               Quick Print Task List
 //             </button>
 
 //             {/* Share Task List Section */}
-//             <div style={{ marginTop: "20px" }}>
+//             <div style={{ marginTop: "15px" }}>
 //               <label
 //                 style={{
 //                   display: "block",
-//                   marginBottom: "10px",
-//                   color: "#005b96",
-//                   fontWeight: "bold",
 //                 }}
 //               >
 //                 Share Task List via Email or Text:
@@ -791,11 +958,12 @@
 //                   style={{
 //                     width: "100%",
 //                     padding: "10px",
-//                     backgroundColor: "#005b96",
+//                     backgroundColor: "#003f69",
 //                     color: "#fff",
 //                     borderRadius: "5px",
 //                     border: "none",
 //                     marginBottom: "15px",
+//                     fontSize: "15px", 
 //                   }}
 //                 >
 //                   Log In / Sign Up
@@ -806,11 +974,12 @@
 //                   style={{
 //                     width: "100%",
 //                     padding: "10px",
-//                     marginTop: "15px",
-//                     backgroundColor: "#005b96",
+//                     marginTop: "5px",
+//                     backgroundColor: "#003f69",
 //                     color: "#fff",
 //                     borderRadius: "5px",
 //                     border: "none",
+//                     fontSize: "15px", 
 //                   }}
 //                 >
 //                   Share Task List
@@ -828,13 +997,13 @@
 //                 }}
 //                 style={{
 //                   width: "100%",
-//                   padding: "12px",
+//                   padding: "10px",
 //                   marginTop: "10px",
-//                   backgroundColor: "#005b96",
+//                   backgroundColor: "#003f69",
 //                   color: "#fff",
 //                   border: "none",
 //                   borderRadius: "5px",
-//                   fontSize: "1em",
+//                   fontSize: "15px", 
 //                 }}
 //               >
 //                 Log Out
@@ -848,6 +1017,8 @@
 // }
 
 
+
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -857,7 +1028,7 @@ import TaskList from "./TaskList";
 
 export default function TaskListifyPage() {
   const [taskName, setTaskName] = useState("");
-  const [timesPerDay, setTimesPerDay] = useState(1);
+  const [dailyOccurences, setDailyOccurences] = useState(1);
   const [eventDays, setEventDays] = useState("everyday");
   const [manualDays, setManualDays] = useState([]);
   const [showTime, setShowTime] = useState(false);
@@ -872,6 +1043,13 @@ export default function TaskListifyPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [modifiedTasks, setModifiedTasks] = useState([]);
+
+  const [showTaskNameRequired, setShowTaskNameRequired] = useState(true); // Initially show required field
+  const [requiredFields, setRequiredFields] = useState([]);
+
+  // New state variables for priority
+  const [priority, setPriority] = useState("");
+  const [sortByPriority, setSortByPriority] = useState("None");
 
   const navigate = useNavigate();
 
@@ -893,9 +1071,12 @@ export default function TaskListifyPage() {
 
     const storedHiddenDays = JSON.parse(localStorage.getItem("hiddenDays")) || [];
     setHiddenDays(storedHiddenDays);
+
+    const storedSortByPriority = localStorage.getItem("sortByPriority");
+    if (storedSortByPriority) setSortByPriority(storedSortByPriority);
   }, []);
 
-  // Save tasks to localStorage
+  // Save tasks and settings to localStorage
   useEffect(() => {
     localStorage.setItem("tasks", JSON.stringify(tasks));
   }, [tasks]);
@@ -912,6 +1093,10 @@ export default function TaskListifyPage() {
     localStorage.setItem("hiddenDays", JSON.stringify(hiddenDays));
   }, [hiddenDays]);
 
+  useEffect(() => {
+    localStorage.setItem("sortByPriority", sortByPriority);
+  }, [sortByPriority]);
+
   // Handle Remove Mode toggle
   useEffect(() => {
     if (removeMode) {
@@ -924,11 +1109,6 @@ export default function TaskListifyPage() {
   // Utility: Get Final Times
   const getFinalTimes = () => {
     return timesOfTheDay.map(({ hour, minute, amPm, note }) => {
-      if ((hour || minute) && !amPm) {
-        alert("Please select AM or PM.");
-        throw new Error("AM/PM is required if hours or minutes are entered.");
-      }
-
       const time =
         hour && minute && amPm
           ? `${hour.padStart(2, "0")}:${minute.padStart(2, "0")} ${amPm}`
@@ -939,8 +1119,49 @@ export default function TaskListifyPage() {
 
   // Handle adding a task
   const handleAddTask = () => {
+    let isValid = true;
+    setRequiredFields([]);
+
     if (!taskName.trim()) {
-      alert("Please enter a task name.");
+      // Show required field indicator for task name
+      setShowTaskNameRequired(true);
+      isValid = false;
+    } else {
+      setShowTaskNameRequired(false);
+    }
+
+    // Validate times
+    if (showTime) {
+      const updatedRequiredFields = [...requiredFields];
+      timesOfTheDay.forEach((time, index) => {
+        const { hour, minute, amPm } = time;
+        if (hour || minute || amPm) {
+          // If any of the fields are filled, the others become required
+          if (!hour) {
+            isValid = false;
+            if (!updatedRequiredFields.includes(`hour-${index}`)) {
+              updatedRequiredFields.push(`hour-${index}`);
+            }
+          }
+          if (!minute) {
+            isValid = false;
+            if (!updatedRequiredFields.includes(`minute-${index}`)) {
+              updatedRequiredFields.push(`minute-${index}`);
+            }
+          }
+          if (!amPm) {
+            isValid = false;
+            if (!updatedRequiredFields.includes(`amPm-${index}`)) {
+              updatedRequiredFields.push(`amPm-${index}`);
+            }
+          }
+        }
+      });
+      setRequiredFields(updatedRequiredFields);
+    }
+
+    if (!isValid) {
+      alert("Please fill in all required fields.");
       return;
     }
 
@@ -966,6 +1187,7 @@ export default function TaskListifyPage() {
       taskName,
       days,
       taskTimesPerDay,
+      priority,
     };
 
     setTasks((prevTasks) => [...prevTasks, newTask]);
@@ -975,10 +1197,13 @@ export default function TaskListifyPage() {
   // Reset Form
   const resetForm = () => {
     setTaskName("");
-    setTimesPerDay(1);
+    setDailyOccurences(1);
     setManualDays([]);
     setTimesOfTheDay([{ hour: "", minute: "", amPm: "", note: "" }]);
     setShowTime(false);
+    setShowTaskNameRequired(true); // Show required field again
+    setRequiredFields([]);
+    setPriority("");
   };
 
   // Download Tasks as JSON
@@ -1093,7 +1318,7 @@ export default function TaskListifyPage() {
 
   // Handle Times Change
   const handleTimesChange = (value) => {
-    setTimesPerDay(value);
+    setDailyOccurences(value);
     setTimesOfTheDay(
       Array.from({ length: value }, () => ({ hour: "", minute: "", amPm: "", note: "" }))
     );
@@ -1112,14 +1337,48 @@ export default function TaskListifyPage() {
       const minute = parseInt(value, 10);
       updatedTimes[index].minute = isNaN(minute)
         ? ""
-        : Math.min(Math.max(minute, 0), 59)
-            .toString()
-            .padStart(2, "0");
+        : Math.min(Math.max(minute, 0), 59).toString();
     } else {
       updatedTimes[index][field] = value;
     }
 
     setTimesOfTheDay(updatedTimes);
+
+    // Update required fields
+    const updatedRequiredFields = [...requiredFields];
+    const { hour, minute, amPm } = updatedTimes[index];
+
+    if (hour || minute || amPm) {
+      // If any field is filled, others become required
+      if (!hour && !updatedRequiredFields.includes(`hour-${index}`)) {
+        updatedRequiredFields.push(`hour-${index}`);
+      } else if (hour && updatedRequiredFields.includes(`hour-${index}`)) {
+        updatedRequiredFields.splice(updatedRequiredFields.indexOf(`hour-${index}`), 1);
+      }
+
+      if (!minute && !updatedRequiredFields.includes(`minute-${index}`)) {
+        updatedRequiredFields.push(`minute-${index}`);
+      } else if (minute && updatedRequiredFields.includes(`minute-${index}`)) {
+        updatedRequiredFields.splice(updatedRequiredFields.indexOf(`minute-${index}`), 1);
+      }
+
+      if (!amPm && !updatedRequiredFields.includes(`amPm-${index}`)) {
+        updatedRequiredFields.push(`amPm-${index}`);
+      } else if (amPm && updatedRequiredFields.includes(`amPm-${index}`)) {
+        updatedRequiredFields.splice(updatedRequiredFields.indexOf(`amPm-${index}`), 1);
+      }
+    } else {
+      // If all fields are empty, remove from requiredFields
+      ["hour", "minute", "amPm"].forEach((field) => {
+        const fieldKey = `${field}-${index}`;
+        const fieldIndex = updatedRequiredFields.indexOf(fieldKey);
+        if (fieldIndex !== -1) {
+          updatedRequiredFields.splice(fieldIndex, 1);
+        }
+      });
+    }
+
+    setRequiredFields(updatedRequiredFields);
   };
 
   // Toggle Hidden Day
@@ -1254,12 +1513,19 @@ export default function TaskListifyPage() {
             marginBottom: "20px",
           }}
         >
-          <div style={{ marginBottom: "15px" }}>
+          <div style={{ marginBottom: "15px", position: "relative" }}>
             <label>Event Name:</label>
             <input
               type="text"
               value={taskName}
-              onChange={(e) => setTaskName(e.target.value)}
+              onChange={(e) => {
+                setTaskName(e.target.value);
+                if (e.target.value.trim()) {
+                  setShowTaskNameRequired(false);
+                } else {
+                  setShowTaskNameRequired(true);
+                }
+              }}
               style={{
                 width: "97%",
                 marginTop: "5px",
@@ -1268,12 +1534,29 @@ export default function TaskListifyPage() {
                 borderRadius: "5px",
               }}
             />
+            {showTaskNameRequired && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "0px",
+                  right: "0",
+                  backgroundColor: "#ffdddd",
+                  padding: "2px 5px",
+                  borderRadius: "3px",
+                  fontSize: "0.8em",
+                  cursor: "default",
+                }}
+                title="Required Field"
+              >
+                Req. Field
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: "15px" }}>
-            <label>Times per Day:</label>
+            <label>Task Frequency:</label>
             <select
-              value={timesPerDay}
+              value={dailyOccurences}
               onChange={(e) => handleTimesChange(Number(e.target.value))}
               style={{
                 width: "100%",
@@ -1331,7 +1614,30 @@ export default function TaskListifyPage() {
             )}
           </div>
 
+
+
+          {/* Priority Level Selection */}
           <div style={{ marginBottom: "15px" }}>
+            <label>Priority Level:</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              style={{
+                width: "100%",
+                marginTop: "5px",
+                padding: "10px",
+                border: "1px solid #005b96",
+                borderRadius: "5px",
+              }}
+            >
+              <option value="">None (No colour)</option>
+              <option value="Low">Low Priority (Green)</option>
+              <option value="Medium">Med Priority (Yellow)</option>
+              <option value="High">High Priority (Red)</option>
+            </select>
+
+
+          <div style={{ marginTop: "15px" }}>
             <label>Would You Like to Select a Time? / Add a note to event?</label>
             <input
               type="checkbox"
@@ -1343,62 +1649,126 @@ export default function TaskListifyPage() {
 
           {showTime && (
             <div style={{ marginTop: "15px" }}>
-              {timesOfTheDay.map((time, index) => (
-                <div
-                  key={index}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    marginBottom: "15px",
-                    gap: "10px",
-                  }}
-                >
-                  <div style={{ flexGrow: 1 }}>
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <input
-                        type="number"
-                        placeholder="HH"
-                        value={time.hour}
-                        min={1}
-                        max={12}
-                        onChange={(e) => handleTimeChange(index, "hour", e.target.value)}
-                        style={{
-                          width: "20%",
-                          padding: "10px",
-                          border: "1px solid #005b96",
-                          borderRadius: "5px",
-                          textAlign: "center",
-                        }}
-                      />
-                      <input
-                        type="number"
-                        placeholder="MM"
-                        value={time.minute}
-                        min={0}
-                        max={59}
-                        onChange={(e) => handleTimeChange(index, "minute", e.target.value)}
-                        style={{
-                          width: "20%",
-                          padding: "10px",
-                          border: "1px solid #005b96",
-                          borderRadius: "5px",
-                          textAlign: "center",
-                        }}
-                      />
-                      <select
-                        value={time.amPm}
-                        onChange={(e) => handleTimeChange(index, "amPm", e.target.value)}
-                        style={{
-                          width: "30%",
-                          padding: "10px",
-                          border: "1px solid #005b96",
-                          borderRadius: "5px",
-                        }}
-                      >
-                        <option value="">AM/PM</option>
-                        <option value="AM">AM</option>
-                        <option value="PM">PM</option>
-                      </select>
+              {timesOfTheDay.map((time, index) => {
+                const isHourRequired = requiredFields.includes(`hour-${index}`);
+                const isMinuteRequired = requiredFields.includes(`minute-${index}`);
+                const isAmPmRequired = requiredFields.includes(`amPm-${index}`);
+
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      marginBottom: "15px",
+                      position: "relative",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: "40px" }}>
+                      {/* Hour Input */}
+                      <div style={{ position: "relative", width: "30%" }}>
+                        <input
+                          type="number"
+                          placeholder="HH"
+                          value={time.hour}
+                          min={1}
+                          max={12}
+                          onChange={(e) => handleTimeChange(index, "hour", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            border: "1px solid #005b96",
+                            borderRadius: "5px",
+                            textAlign: "center",
+                          }}
+                        />
+                        {isHourRequired && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "-20px",
+                              left: "0",
+                              backgroundColor: "#ffdddd",
+                              padding: "2px 5px",
+                              borderRadius: "3px",
+                              fontSize: "0.8em",
+                              cursor: "default",
+                            }}
+                            title="Required Field"
+                          >
+                            Req. Field
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Minute Input */}
+                      <div style={{ position: "relative", width: "30%" }}>
+                        <input
+                          type="number"
+                          placeholder="MM"
+                          value={time.minute}
+                          min={0}
+                          max={59}
+                          onChange={(e) => handleTimeChange(index, "minute", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            border: "1px solid #005b96",
+                            borderRadius: "5px",
+                            textAlign: "center",
+                          }}
+                        />
+                        {isMinuteRequired && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "-20px",
+                              left: "0",
+                              backgroundColor: "#ffdddd",
+                              padding: "2px 5px",
+                              borderRadius: "3px",
+                              fontSize: "0.8em",
+                              cursor: "default",
+                            }}
+                            title="Required Field"
+                          >
+                            Req. Field
+                          </div>
+                        )}
+                      </div>
+
+                      {/* AM/PM Select */}
+                      <div style={{ position: "relative", width: "30%" }}>
+                        <select
+                          value={time.amPm}
+                          onChange={(e) => handleTimeChange(index, "amPm", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            border: "1px solid #005b96",
+                            borderRadius: "5px",
+                          }}
+                        >
+                          <option value="">AM/PM</option>
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                        {isAmPmRequired && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "-20px",
+                              left: "0",
+                              backgroundColor: "#ffdddd",
+                              padding: "2px 5px",
+                              borderRadius: "3px",
+                              fontSize: "0.8em",
+                              cursor: "default",
+                            }}
+                            title="Required Field"
+                          >
+                            Req. Field
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <input
                       type="text"
@@ -1414,11 +1784,15 @@ export default function TaskListifyPage() {
                       }}
                     />
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
+
+          </div>
         </div>
+
+
 
         {/* Buttons */}
         <button
@@ -1479,6 +1853,7 @@ export default function TaskListifyPage() {
           removeMode={removeMode}
           onRemoveTask={handleRemoveTask}
           onRemoveOccurrence={handleRemoveOccurrence}
+          sortByPriority={sortByPriority}
         />
 
         {/* Settings */}
@@ -1545,10 +1920,10 @@ export default function TaskListifyPage() {
             <label>Hide Days of the Week:</label>
             <div style={{ display: "flex", flexWrap: "wrap", marginTop: "5px" }}>
               {getOrderedDays().map((day) => (
-                <label key={day} style={{ marginRight: "10px", color: "#000" }}>
+                <label key={day} style={{ marginRight: "29.22px", color: "#000" }}>
                   <input
                     type="checkbox"
-                    style={{ transform: "scale(1.25)" }}
+                    style={{ transform: "scale(1.5)" }}
                     checked={hiddenDays.includes(day)}
                     onChange={() => toggleHiddenDay(day)}
                   />
@@ -1557,21 +1932,41 @@ export default function TaskListifyPage() {
               ))}
             </div>
 
+            {/* Sort by Priority Level */}
+            <div style={{ marginTop: "15px" }} />
+            <label>Sort Tasks by Priority:</label>
+            <select
+              value={sortByPriority}
+              onChange={(e) => setSortByPriority(e.target.value)}
+              style={{
+                width: "100%",
+                marginTop: "5px",
+                padding: "10px",
+                border: "1px solid #005b96",
+                borderRadius: "5px",
+              }}
+            >
+              <option value="None">Default (None)</option>
+              <option value="HighToLow">Highest to Lowest</option>
+              <option value="LowToHigh">Lowest to Highest</option>
+            </select>
+
             <div style={{ marginTop: "15px" }} />
             <label>
-              Download Task list as a JSON File so you can reuse it in the future as a template for
-              making new lists:
+              Download Task list as a JSON File so you can reuse it in the future as a template for making
+              new lists:
             </label>
             <button
               onClick={downloadTasks}
               style={{
                 width: "100%",
                 padding: "10px",
-                marginTop: "10px",
+                marginTop: "5px",
                 backgroundColor: "#003f69",
                 color: "#fff",
                 borderRadius: "5px",
                 border: "none",
+                fontSize: "15px",
               }}
             >
               Download Task List
@@ -1585,15 +1980,16 @@ export default function TaskListifyPage() {
             <label
               style={{
                 display: "block",
-                width: "97.3%",
+                width: "97.33%",
                 padding: "10px",
-                marginTop: "10px",
+                marginTop: "5px",
                 backgroundColor: "#003f69",
                 color: "#fff",
                 textAlign: "center",
                 borderRadius: "5px",
                 border: "none",
                 cursor: "pointer",
+                fontSize: "15px",
               }}
             >
               Upload Task List
@@ -1609,32 +2005,30 @@ export default function TaskListifyPage() {
 
             <div style={{ marginTop: "15px" }} />
             <label>
-              Quick Print gives the option to save list as a PDF for viewing, or send it
-              automatically to print screen:
+              Quick Print gives the option to save list as a PDF for viewing, or send it automatically to
+              print screen:
             </label>
             <button
               onClick={handleQuickPrint}
               style={{
                 width: "100%",
                 padding: "10px",
-                marginTop: "10px",
+                marginTop: "5px",
                 backgroundColor: "#003f69",
                 color: "#fff",
                 borderRadius: "5px",
                 border: "none",
+                fontSize: "15px",
               }}
             >
               Quick Print Task List
             </button>
 
             {/* Share Task List Section */}
-            <div style={{ marginTop: "20px" }}>
+            <div style={{ marginTop: "15px" }}>
               <label
                 style={{
                   display: "block",
-                  marginBottom: "10px",
-                  color: "#005b96",
-                  fontWeight: "bold",
                 }}
               >
                 Share Task List via Email or Text:
@@ -1645,11 +2039,12 @@ export default function TaskListifyPage() {
                   style={{
                     width: "100%",
                     padding: "10px",
-                    backgroundColor: "#005b96",
+                    backgroundColor: "#003f69",
                     color: "#fff",
                     borderRadius: "5px",
                     border: "none",
                     marginBottom: "15px",
+                    fontSize: "15px",
                   }}
                 >
                   Log In / Sign Up
@@ -1660,11 +2055,12 @@ export default function TaskListifyPage() {
                   style={{
                     width: "100%",
                     padding: "10px",
-                    marginTop: "15px",
-                    backgroundColor: "#005b96",
+                    marginTop: "5px",
+                    backgroundColor: "#003f69",
                     color: "#fff",
                     borderRadius: "5px",
                     border: "none",
+                    fontSize: "15px",
                   }}
                 >
                   Share Task List
@@ -1682,13 +2078,13 @@ export default function TaskListifyPage() {
                 }}
                 style={{
                   width: "100%",
-                  padding: "12px",
+                  padding: "10px",
                   marginTop: "10px",
-                  backgroundColor: "#005b96",
+                  backgroundColor: "#003f69",
                   color: "#fff",
                   border: "none",
                   borderRadius: "5px",
-                  fontSize: "1em",
+                  fontSize: "15px",
                 }}
               >
                 Log Out
