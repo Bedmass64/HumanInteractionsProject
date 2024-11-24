@@ -23,7 +23,7 @@ export default function TaskListifyPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [modifiedTasks, setModifiedTasks] = useState([]);
 
-  const [showTaskNameRequired, setShowTaskNameRequired] = useState(true); // Initially show required field
+  const [showTaskNameRequired, setShowTaskNameRequired] = useState(true); 
   const [requiredFields, setRequiredFields] = useState([]);
 
   // New state variables for priority
@@ -185,7 +185,7 @@ export default function TaskListifyPage() {
     setPriority("");
   };
 
-  // Download Tasks as JSON
+  // Download Tasks in JSON format
   const downloadTasks = () => {
     const blob = new Blob([JSON.stringify(tasks, null, 2)], {
       type: "application/json",
@@ -273,7 +273,6 @@ export default function TaskListifyPage() {
     printWindow.close();
   };
 
-  // Upload Tasks JSON
   const uploadTasksJSON = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -347,7 +346,6 @@ export default function TaskListifyPage() {
         updatedRequiredFields.splice(updatedRequiredFields.indexOf(`amPm-${index}`), 1);
       }
     } else {
-      // If all fields are empty, remove from requiredFields
       ["hour", "minute", "amPm"].forEach((field) => {
         const fieldKey = `${field}-${index}`;
         const fieldIndex = updatedRequiredFields.indexOf(fieldKey);
@@ -403,7 +401,7 @@ export default function TaskListifyPage() {
               delete updatedTaskTimesPerDay[day];
               return { ...task, days: updatedDays, taskTimesPerDay: updatedTaskTimesPerDay };
             } else {
-              return null; // Remove task completely if no days left
+              return null; // Removes tasks completely if no days are left
             }
           }
           return task;
@@ -428,14 +426,14 @@ export default function TaskListifyPage() {
               };
               return { ...task, taskTimesPerDay: updatedTaskTimesPerDay };
             } else {
-              // If no times left for the day, remove the day from the task
+              // If no times left for the day, removes the day from the task
               const updatedDays = task.days.filter((d) => d !== day);
               if (updatedDays.length > 0) {
                 const updatedTaskTimesPerDay = { ...task.taskTimesPerDay };
                 delete updatedTaskTimesPerDay[day];
                 return { ...task, days: updatedDays, taskTimesPerDay: updatedTaskTimesPerDay };
               } else {
-                return null; // Remove task completely if no days left
+                return null; // Removes the task completely if no days are left
               }
             }
           }
@@ -445,7 +443,6 @@ export default function TaskListifyPage() {
     });
   };
 
-  // Handle Save Changes
   const handleSaveChanges = () => {
     setTasks(modifiedTasks);
     setRemoveMode(false);
@@ -483,7 +480,6 @@ export default function TaskListifyPage() {
           TaskListify
         </h1>
 
-        {/* First Section */}
         <div
           style={{
             border: "1px solid #005b96",

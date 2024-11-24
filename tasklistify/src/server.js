@@ -1,3 +1,5 @@
+//This file was previously used when attempting to set up a server that connected to Tilio for setting up alerts and for sharing task lists.
+
 // require('dotenv').config();  // Load environment variables from .env file
 
 // console.log("Twilio Account SID:", process.env.TWILIO_ACCOUNT_SID);
