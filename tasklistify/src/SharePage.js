@@ -1,3 +1,6 @@
+//Not fully working because issues with server.js, sendgrid and twilio.
+//Wrote out the visual component for the page, but does not do the intended functionality.
+
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TaskListify from './TaskListify';
