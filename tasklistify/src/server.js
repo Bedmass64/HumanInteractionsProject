@@ -1,4 +1,4 @@
-//This file was previously used when attempting to set up a server that connected to Tilio for setting up alerts and for sharing task lists.
+//This file was previously used when attempting to set up a server that connected to Twilio for setting up alerts and for sharing task lists.
 
 // require('dotenv').config();  // Load environment variables from .env file
 
