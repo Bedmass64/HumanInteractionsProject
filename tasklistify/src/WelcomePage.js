@@ -69,24 +69,21 @@ import exampleScreenshot from "./images/Example_Screenshot.png";
 const WelcomePage = () => {
     const navigate = useNavigate();
 
-    const reviews = [
-        "TaskListify helped me organize my life! ⭐⭐⭐⭐⭐",
-        "Fantastic app for productivity. ⭐⭐⭐⭐⭐",
-        "Super easy to use and very helpful. ⭐⭐⭐⭐⭐",
+    const inspirationalQuotes = ['"Stay focused and never give up on your goals!" - Scooby doo',
+        '"Dream big, start small, but most importantly, start." - Winnie the Poo',
+        '"Progress over prefection" - Scibbidy doo bop',
     ];
-    const inspirationalQuote = "Stay focused and never give up on your goals!";
     const [currentSlide, setCurrentSlide] = useState(0);
 
     const slides = [
-        ...reviews,
-        inspirationalQuote,
+        ...inspirationalQuotes,
         { type: "image", src: exampleScreenshot},
     ];
 
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentSlide((prev) => (prev + 1) % slides.length);
-        }, 5000); // Change slide every 5 seconds
+        }, 6000); // Change slide every 6 seconds
         return () => clearInterval(interval);
     }, [slides.length]);
 
@@ -111,13 +108,14 @@ const WelcomePage = () => {
                 </button>
             </div>
             <h1>Welcome to TaskListify!</h1>
-            <div className="slideshow">
+             <div className="slideshow">
                 {typeof slides[currentSlide] === "string" ? (
                     <p>{slides[currentSlide]}</p>
-                ) : (
+                ) : slides[currentSlide]?.type === "image" ? (
                     <img src={slides[currentSlide].src} alt="Example screenshot" />
-                )}
+                ) : null}
             </div>
+
             <button onClick={handleMakeListClick}>Make List!</button>
         </div>
     );
