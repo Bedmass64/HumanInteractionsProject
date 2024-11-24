@@ -4,7 +4,6 @@
 // import { useNavigate } from "react-router-dom";
 // import TaskListify from "./TaskListify";
 // import TaskList from "./TaskList";
-// import axios from 'axios'; // Import axios for API calls
 
 // export default function TaskListifyPage() {
 //   const [taskName, setTaskName] = useState("");
@@ -143,131 +142,83 @@
 //     link.click();
 //   };
 
-//   // Quick Print Handler
 //   const handleQuickPrint = () => {
 //     const printContent = document.getElementById("task-list-section").innerHTML;
-
+  
 //     // Create a new window and set its content
 //     const printWindow = window.open("", "_blank");
 //     printWindow.document.write(`
 //       <html>
 //         <head>
 //           <style>
-//             body {
-//               font-family: Arial, sans-serif;
-//               margin: 0;
-//               padding: 20px;
-//               color: #000;
-//             }
-//             @page {
-//               margin: 20mm;
-//             }
-//             h1 {
-//               text-align: center;
-//               color: #005b96;
-//             }
-//             .day-box {
-//               padding: 10px;
-//               border: 1px solid #005b96;
-//               border-radius: 5px;
-//               background-color: #e1f5fe;
-//               margin-bottom: 15px;
-//             }
-//             .event-box {
-//               padding: 10px;
-//               border: 1px solid #000;
-//               border-radius: 5px;
-//               background-color: #fff;
-//               margin-bottom: 10px;
-//               position: relative;
-//             }
-//             .event-section {
-//               margin: 5px 0;
-//             }
-//             .event-section label {
-//               font-weight: bold;
-//             }
-//             .checkbox {
-//               transform: scale(1.5);
-//               margin-right: 10px;
+//             @media print {
+//               body {
+//                 font-family: Arial, sans-serif;
+//                 margin: 0;
+//                 padding: 0;
+//                 color: #000;
+//               }
+//               @page {
+//                 size: auto;
+//                 margin: 20mm;
+//               }
+//               h1 {
+//                 text-align: center;
+//                 color: #005b96;
+//               }
+//               .day-box {
+//                 display: block;
+//                 width: 100%;
+//                 padding: 10px;
+//                 border: 1px solid #005b96;
+//                 border-radius: 5px;
+//                 background-color: #e1f5fe;
+//                 margin-bottom: 15px;
+//                 page-break-before: always; /* Force new page for each day */
+//                 page-break-inside: avoid;  /* Avoid cutting inside the day */
+//                 break-inside: avoid;      /* For modern browsers */
+//               }
+//               .event-box {
+//                 padding: 10px;
+//                 border: 1px solid #000;
+//                 border-radius: 5px;
+//                 background-color: #fff;
+//                 margin-bottom: 10px;
+//                 position: relative;
+//                 page-break-inside: avoid; /* Prevent cutting tasks within a day */
+//                 break-inside: avoid;      /* For modern browsers */
+//               }
+//               .event-section {
+//                 margin: 5px 0;
+//               }
+//               .event-section label {
+//                 font-weight: bold;
+//               }
+//               .checkbox {
+//                 transform: scale(1.5);
+//                 margin-right: 10px;
+//               }
+//               /* Ensure everything fits */
+//               * {
+//                 box-sizing: border-box;
+//                 max-width: 100%;
+//                 word-wrap: break-word;
+//               }
 //             }
 //           </style>
 //         </head>
 //         <body>
-//           </h1>
 //           ${printContent}
 //         </body>
 //       </html>
 //     `);
-
-//         printWindow.document.close();
-//         printWindow.focus();
-//         printWindow.print();
-//         printWindow.close();
-//     };
-
-
-//     const handleSetAlerts = async () => {
-//         if (!isLoggedIn) {
-//             alert('You need to log in or create an account to set up alerts.');
-//             return;
-//         }
-    
-//         // Retrieve user's phone number from localStorage
-//         const existingCredentials = JSON.parse(localStorage.getItem('userCredentials'));
-//         const userEmail = Object.keys(existingCredentials)[0]; // Assuming the first user is the current one
-//         const userPhone = existingCredentials[userEmail]?.phone;
-    
-//         if (!userPhone) {
-//             alert('Phone number not found. Please update your account with a phone number.');
-//             return;
-//         }
-    
-//         console.log("Sending alert to phone:", userPhone); // Debug log
-//         console.log("Message:", "You have successfully set up alerts for your tasks!"); // Debug log
-    
-//         try {
-//             // Replace with your backend API endpoint
-//             const response = await axios.post('http://localhost:5001/send-alert', {
-//                 taskName: "Alert Setup",  // Example task name
-//                 userPhone,                // Pass the user's phone number
-//                 message: 'You have successfully set up alerts for your tasks!'
-//             });
-    
-//             console.log("API Response:", response); // Debug log
-    
-//             if (response.status >= 200 && response.status < 300) {
-//                 alert('Alerts have been successfully set up on your mobile device.');
-//             } else {
-//                 alert('Failed to set up alerts. Please try again later.');
-//             }
-//         } catch (error) {
-//             alert('An error occurred while setting up alerts. Please try again later.');
-//             console.error('Error:', error); // Debug log
-//         }
-//     };
-    
-    
-//     // Add Alert Button
-//     const renderAlertButton = () => {
-//         return (
-//             <button
-//                 onClick={handleSetAlerts}
-//                 style={{
-//                     width: "100%",
-//                     padding: "12px",
-//                     marginTop: "15px",
-//                     backgroundColor: "#005b96",
-//                     color: "#fff",
-//                     border: "none",
-//                     borderRadius: "5px",
-//                     fontSize: "1em",
-//                 }}
-//             >
-//                 Set Up Mobile Alerts
-//             </button>
-//         );
-//     };
+  
+//     printWindow.document.close();
+//     printWindow.focus();
+//     printWindow.print();
+//     printWindow.close();
+//   };
+  
 
 //   // Upload Tasks JSON
 //   const uploadTasksJSON = (event) => {
@@ -631,7 +582,6 @@
 //         >
 //           Add Task
 //         </button>
-//                 {renderAlertButton()}
 //         <button
 //           onClick={() => setRemoveMode(!removeMode)}
 //           style={{
@@ -755,7 +705,7 @@
 
 //             <div style={{ marginTop: "15px" }} />
 //             <label>
-//               Download Task list as a JS File so you can reuse it in the future as a template for
+//               Download Task list as a JSON File so you can reuse it in the future as a template for
 //               making new lists:
 //             </label>
 //             <button
@@ -775,7 +725,7 @@
 
 //             <div style={{ marginTop: "15px" }} />
 //             <label>
-//               Upload Task list lets you import JS Files to work from an existing list template:
+//               Upload Task list lets you import JSON Files to work from an existing list template:
 //             </label>
 
 //             <label
@@ -1042,7 +992,6 @@ export default function TaskListifyPage() {
     link.click();
   };
 
-  // Quick Print Handler
   const handleQuickPrint = () => {
     const printContent = document.getElementById("task-list-section").innerHTML;
 
@@ -1052,48 +1001,63 @@ export default function TaskListifyPage() {
       <html>
         <head>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 20px;
-              color: #000;
-            }
-            @page {
-              margin: 20mm;
-            }
-            h1 {
-              text-align: center;
-              color: #005b96;
-            }
-            .day-box {
-              padding: 10px;
-              border: 1px solid #005b96;
-              border-radius: 5px;
-              background-color: #e1f5fe;
-              margin-bottom: 15px;
-            }
-            .event-box {
-              padding: 10px;
-              border: 1px solid #000;
-              border-radius: 5px;
-              background-color: #fff;
-              margin-bottom: 10px;
-              position: relative;
-            }
-            .event-section {
-              margin: 5px 0;
-            }
-            .event-section label {
-              font-weight: bold;
-            }
-            .checkbox {
-              transform: scale(1.5);
-              margin-right: 10px;
+            @media print {
+              body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                color: #000;
+              }
+              @page {
+                size: auto;
+                margin: 20mm;
+              }
+              h1 {
+                text-align: center;
+                color: #005b96;
+              }
+              .day-box {
+                display: block;
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #005b96;
+                border-radius: 5px;
+                background-color: #e1f5fe;
+                margin-bottom: 15px;
+                page-break-before: always; /* Force new page for each day */
+                page-break-inside: avoid;  /* Avoid cutting inside the day */
+                break-inside: avoid;      /* For modern browsers */
+              }
+              .event-box {
+                padding: 10px;
+                border: 1px solid #000;
+                border-radius: 5px;
+                background-color: #fff;
+                margin-bottom: 10px;
+                position: relative;
+                page-break-inside: avoid; /* Prevent cutting tasks within a day */
+                break-inside: avoid;      /* For modern browsers */
+              }
+              .event-section {
+                margin: 5px 0;
+              }
+              .event-section label {
+                font-weight: bold;
+              }
+              .checkbox {
+                transform: scale(1.5);
+                margin-right: 10px;
+              }
+              /* Ensure everything fits */
+              * {
+                box-sizing: border-box;
+                max-width: 100%;
+                word-wrap: break-word;
+              }
             }
           </style>
         </head>
         <body>
-          </h1>
           ${printContent}
         </body>
       </html>
@@ -1166,11 +1130,16 @@ export default function TaskListifyPage() {
   };
 
   // Get Ordered Days
-  const getOrderedDaysOfWeek = () => {
+  const getOrderedDays = () => {
     const days = taskListify.daysOfWeek;
     const firstDayIndex = days.indexOf(firstDayOfWeek);
     const orderedDays = [...days.slice(firstDayIndex), ...days.slice(0, firstDayIndex)];
-    return orderedDays.filter((day) => !hiddenDays.includes(day));
+    return orderedDays;
+  };
+
+  // Get Ordered Days for Task List
+  const getOrderedDaysOfWeek = () => {
+    return getOrderedDays().filter((day) => !hiddenDays.includes(day));
   };
 
   // Handle Sharing Task List
@@ -1575,7 +1544,7 @@ export default function TaskListifyPage() {
             <div style={{ marginTop: "15px" }} />
             <label>Hide Days of the Week:</label>
             <div style={{ display: "flex", flexWrap: "wrap", marginTop: "5px" }}>
-              {taskListify.daysOfWeek.map((day) => (
+              {getOrderedDays().map((day) => (
                 <label key={day} style={{ marginRight: "10px", color: "#000" }}>
                   <input
                     type="checkbox"
@@ -1590,7 +1559,7 @@ export default function TaskListifyPage() {
 
             <div style={{ marginTop: "15px" }} />
             <label>
-              Download Task list as a JS File so you can reuse it in the future as a template for
+              Download Task list as a JSON File so you can reuse it in the future as a template for
               making new lists:
             </label>
             <button
@@ -1610,7 +1579,7 @@ export default function TaskListifyPage() {
 
             <div style={{ marginTop: "15px" }} />
             <label>
-              Upload Task list lets you import JS Files to work from an existing list template:
+              Upload Task list lets you import JSON Files to work from an existing list template:
             </label>
 
             <label
