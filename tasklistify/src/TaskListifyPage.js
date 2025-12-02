@@ -14,7 +14,7 @@ export default function TaskListifyPage() {
   const [timesOfTheDay, setTimesOfTheDay] = useState([
     { hour: "", minute: "", amPm: "", note: "" },
   ]);
-  const [layout, setLayout] = useState("row");
+  const [layout, setLayout] = useState("column");
   const [tasks, setTasks] = useState([]);
   const [removeMode, setRemoveMode] = useState(false);
   const [firstDayOfWeek, setFirstDayOfWeek] = useState("Sunday");
@@ -196,82 +196,497 @@ export default function TaskListifyPage() {
     link.click();
   };
 
-  const handleQuickPrint = () => {
-    const printContent = document.getElementById("task-list-section").innerHTML;
 
-    // Create a new window and set its content
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-      <html>
-        <head>
-          <style>
-            @media print {
-              body {
-                font-family: Arial, sans-serif;
-                margin: 0;
-                padding: 0;
-                color: #000;
-              }
-              @page {
-                size: auto;
-                margin: 20mm;
-              }
-              h1 {
-                text-align: center;
-                color: #005b96;
-              }
-              .day-box {
-                display: block;
-                width: 100%;
-                padding: 10px;
-                border: 1px solid #005b96;
-                border-radius: 5px;
-                background-color: #e1f5fe;
-                margin-bottom: 15px;
-                page-break-before: always; /* Force new page for each day */
-                page-break-inside: avoid;  /* Avoid cutting inside the day */
-                break-inside: avoid;      /* For modern browsers */
-              }
-              .event-box {
-                padding: 10px;
-                border: 1px solid #000;
-                border-radius: 5px;
-                background-color: #fff;
-                margin-bottom: 10px;
-                position: relative;
-                page-break-inside: avoid; /* Prevent cutting tasks within a day */
-                break-inside: avoid;      /* For modern browsers */
-              }
-              .event-section {
-                margin: 5px 0;
-              }
-              .event-section label {
-                font-weight: bold;
-              }
-              .checkbox {
-                transform: scale(1.5);
-                margin-right: 10px;
-              }
-              /* Ensure everything fits */
-              * {
-                box-sizing: border-box;
-                max-width: 100%;
-                word-wrap: break-word;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          ${printContent}
-        </body>
-      </html>
-    `);
+// //COMPLETE WORKING VERSION FOR SHORT EDGE FLIP
+// const handleQuickPrint = () => {
+//   const taskSection = document.getElementById("task-list-section");
+//   if (!taskSection) {
+//     alert("Couldn't find #task-list-section.");
+//     return;
+//   }
 
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  };
+//   // Try to grab real .day-box children first
+//   let dayBoxes = Array.from(taskSection.querySelectorAll(':scope > .day-box'));
+
+//   // If none, fall back: your DOM looks like [H2, <DIV all days...>]
+//   let daysWrapper = taskSection.children[1] || taskSection;
+
+//   if (dayBoxes.length < 7) {
+//     const DAY_FULL  = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+//     const DAY_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+//     const html = daysWrapper.innerHTML;
+//     const splitRegex = new RegExp(
+//       "(?:^|>)\\s*(" + [...DAY_FULL, ...DAY_SHORT].join("|") + ")\\b",
+//       "gi"
+//     );
+
+//     let match;
+//     const indices = [];
+//     while ((match = splitRegex.exec(html)) !== null) {
+//       const token = match[1];
+//       const full = DAY_FULL.find(d => d.toLowerCase().startsWith(token.toLowerCase())) || token;
+//       indices.push({ name: full, index: match.index });
+//     }
+
+//     if (indices.length === 0) {
+//       alert("Could not detect day sections. Make sure each day name (e.g., 'Sunday', 'Mon') appears clearly.");
+//       return;
+//     }
+
+//     const chunks = [];
+//     for (let i = 0; i < indices.length && chunks.length < 7; i++) {
+//       const startIdx = indices[i].index;
+//       const endIdx   = (i + 1 < indices.length) ? indices[i + 1].index : html.length;
+//       const name     = indices[i].name;
+//       let piece      = html.slice(startIdx, endIdx);
+
+//       // --- sanitize ---
+//       if (piece[0] === '>') piece = piece.slice(1);
+//       const dayHeadRE = new RegExp(
+//         "^\\s*(?:" + [...DAY_FULL, ...DAY_SHORT].join("|") + ")\\b\\s*[:\\-]*\\s*",
+//         "i"
+//       );
+//       piece = piece.replace(dayHeadRE, "");
+//       // --- end sanitize ---
+
+//       chunks.push(`<div class="day-box"><h3 class="day-title">${name}</h3>${piece}</div>`);
+//     }
+
+//     dayBoxes = chunks.map(htmlStr => {
+//       const tmp = document.createElement('div');
+//       tmp.innerHTML = htmlStr;
+//       return tmp.firstElementChild;
+//     });
+//   }
+
+//   if (dayBoxes.length === 0) {
+//     alert("Couldn't form any day boxes; check your markup.");
+//     return;
+//   }
+
+//   const c1HTML = dayBoxes.slice(0, 4).map(el => el.outerHTML); // days 1–4
+//   const c2HTML = dayBoxes.slice(4, 7).map(el => el.outerHTML); // days 5–7
+
+//   const printWindow = window.open("", "_blank");
+//   if (!printWindow) {
+//     alert("Pop-up blocked. Please allow pop-ups.");
+//     return;
+//   }
+
+//   // Build the print document (auto-removes whitespace if container 2 is skipped)
+//   printWindow.document.write(`
+// <!doctype html>
+// <html>
+// <head>
+// <meta charset="utf-8" />
+// <title>Task List Print</title>
+// <style>
+//   :root {
+//     --day-box-height-c1: 477.5mm;
+//     --day-box-height-c2: 481.5mm;
+//     --col-gap: 4mm;
+//   }
+
+//   @media print { @page { margin: 6mm; } }
+
+//   html, body {
+//     margin: 0;
+//     padding: 0;
+//     background: #fff;
+//     font-family: Arial, sans-serif;
+//   }
+
+//   #print-root {
+//     width: 100%;
+//     margin: 0 auto;
+//     box-sizing: border-box;
+//   }
+
+//   .container {
+//     box-sizing: border-box;
+//     margin: 0; /* No extra white space */
+//     padding: 1mm;
+//     border: 3px solid transparent;
+//     border-radius: 6px;
+//     display: grid;
+//   }
+//   .container-1 {
+//     border-color: #fff;
+//     grid-template-columns: repeat(4, 1fr);
+//     gap: var(--col-gap);
+//   }
+//   .container-2 {
+//     border-color: #fff;
+//     grid-template-columns: repeat(3, 1fr);
+//     gap: var(--col-gap);
+//     margin-top: 5mm; /* only adds space when actually rendered */
+//   }
+
+//   .day-box {
+//     border: 1px solid currentColor;
+//     border-radius: 6px;
+//     padding: 0;
+//     background: #fff;
+//     page-break-inside: avoid;
+//     box-sizing: border-box;
+//     width: auto;
+//     overflow: hidden;
+//   }
+//   .container-1 .day-box {
+//     color: #000;
+//     border-color: #005b96 !important;
+//     height: var(--day-box-height-c1) !important;
+//   }
+//   .container-2 .day-box {
+//     color: #000;
+//     border-color: #005b96 !important;
+//     height: var(--day-box-height-c2) !important;
+//   }
+
+//   .day-title {
+//     font-weight: bold;
+//     font-size: 16px;
+//     margin: 8px 0;
+//     text-align: center;
+//   }
+
+//   .event-box {
+//     border: 1px solid #000;
+//     border-radius: 4px;
+//     padding: 6px;
+//     margin-bottom: 6px;
+//     box-sizing: border-box;
+//     page-break-inside: avoid;
+//   }
+
+//   h1,h2,.task-list-header,#page-header { display: none; }
+// </style>
+// </head>
+// <body>
+//   <div id="print-root"></div>
+//   <script>
+//     const payload = {
+//       c1: ${JSON.stringify(c1HTML)},
+//       c2: ${JSON.stringify(c2HTML)}
+//     };
+
+//     const root = document.getElementById('print-root');
+
+//     function buildContainer(containerClass, htmlArray) {
+//       const cont = document.createElement('div');
+//       cont.className = 'container ' + containerClass;
+//       htmlArray.forEach(html => {
+//         const wrap = document.createElement('div');
+//         wrap.innerHTML = html;
+//         let node = wrap.firstElementChild;
+//         if (!node) return;
+//         if (!node.classList.contains('day-box')) node.classList.add('day-box');
+//         cont.appendChild(node);
+//       });
+//       root.appendChild(cont);
+//     }
+
+//     // Always build container 1
+//     buildContainer('container-1', payload.c1);
+
+//     // Only build container 2 if there’s a 5th element onward
+//     if (payload.c2 && payload.c2.length > 0) {
+//       buildContainer('container-2', payload.c2);
+//     } else {
+//       // Ensure no white space remains where container 2 would be
+//       document.body.style.marginBottom = '0';
+//       root.style.marginBottom = '0';
+//     }
+
+//     window.addEventListener('load', () => {
+//       window.print();
+//       window.close();
+//     });
+//   </script>
+// </body>
+// </html>
+//   `);
+
+//   printWindow.document.close();
+// };
+
+
+
+const handleQuickPrint = () => {
+  const taskSection = document.getElementById("task-list-section");
+  if (!taskSection) {
+    alert("Couldn't find #task-list-section.");
+    return;
+  }
+
+  // Try real day boxes first
+  let dayBoxes = Array.from(taskSection.querySelectorAll(':scope > .day-box'));
+  const daysWrapper = taskSection.children[1] || taskSection;
+
+  // Fallback: synthesize 7 day boxes by splitting on day names
+  if (dayBoxes.length < 7) {
+    const DAY_FULL  = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const DAY_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const html = daysWrapper.innerHTML;
+    const splitRegex = new RegExp("(?:^|>)\\s*(" + [...DAY_FULL, ...DAY_SHORT].join("|") + ")\\b","gi");
+
+    let match; const indices = [];
+    while ((match = splitRegex.exec(html)) !== null) {
+      const token = match[1];
+      const full = DAY_FULL.find(d => d.toLowerCase().startsWith(token.toLowerCase())) || token;
+      indices.push({ name: full, index: match.index });
+    }
+    if (!indices.length) {
+      alert("Could not detect day sections. Make sure each day name (e.g., 'Sunday', 'Mon') appears clearly.");
+      return;
+    }
+
+    const chunks = [];
+    for (let i = 0; i < indices.length && chunks.length < 7; i++) {
+      const startIdx = indices[i].index;
+      const endIdx   = (i + 1 < indices.length) ? indices[i + 1].index : html.length;
+      const name     = indices[i].name;
+      let piece      = html.slice(startIdx, endIdx);
+
+      if (piece[0] === '>') piece = piece.slice(1);
+      const dayHeadRE = new RegExp("^\\s*(?:" + [...DAY_FULL, ...DAY_SHORT].join("|") + ")\\b\\s*[:\\-]*\\s*", "i");
+      piece = piece.replace(dayHeadRE, "");
+
+      chunks.push(`<div class="day-box"><h3 class="day-title">${name}</h3>${piece}</div>`);
+    }
+
+    dayBoxes = chunks.map(htmlStr => {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = htmlStr;
+      return tmp.firstElementChild;
+    });
+  }
+
+  if (!dayBoxes.length) {
+    alert("Couldn't form any day boxes; check your markup.");
+    return;
+  }
+
+  // --- Keep your existing pages (1/2 and 3/4) as-is ---
+  // Page 1 = first 4 day boxes (Sun→Wed) — top slice
+  const page1 = dayBoxes.slice(0, 4).map(el => el.outerHTML);
+  // Page 2 = same 4 but reversed — bottom slice
+  const page2 = [...page1].reverse();
+
+  // Days 5–7 for 3-column containers (legacy container-2 → now 3 & 4 with slicing)
+  const c34 = dayBoxes.slice(4, 7).map(el => el.outerHTML);
+  const c34REV = [...c34].reverse();
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Pop-up blocked. Please allow pop-ups.");
+    return;
+  }
+
+  printWindow.document.write(`
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Task List Print</title>
+<style>
+  /* Physical page setup for the sliced Page 1–4 */
+  @media print { @page { size: Letter landscape; margin: 6mm; } }
+
+  html, body { margin: 0; padding: 0; background: #fff; font-family: Arial, sans-serif; }
+  #print-root { width: 100%; margin: 0 auto; box-sizing: border-box; }
+
+  /* --- Slicing variables for container-1 (4 columns / pages 1–4) --- */
+  :root {
+    --total-h: 470mm;      /* total logical height of a day (c1) */
+    --slice1-h: 232mm;     /* top slice height (c1) */
+    --col-gap: 4mm;
+
+    /* --- Slicing variables for containers 3 & 4 (3 columns / days 5–7) --- */
+    --total-h-34: 470mm;   /* total logical height (c3/c4) */
+    --slice1-h-34: 232mm;  /* top slice height (c3); c4 shows the bottom */
+  }
+
+  /* ====== PAGES (container-1 slicing) ====== */
+  .print-page {
+    page-break-after: always; break-after: page;
+    margin: 0; padding: 0;
+  }
+  .print-page:last-of-type { page-break-after: auto; break-after: auto; }
+
+  .container-4col {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--col-gap);
+    padding: 1mm;
+    border: 3px solid transparent;
+    border-radius: 6px;
+    box-sizing: border-box;
+  }
+
+  .day-viewport {
+    box-sizing: border-box;
+    border: 1px solid #005b96;
+    border-radius: 6px;
+    background: #fff;
+    overflow: hidden;
+    height: var(--slice1-h); /* top slice (Page 1 & 3) */
+  }
+  .day-inner { height: var(--total-h); box-sizing: border-box; }
+
+  .day-inner .day-box {
+    height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+
+  .day-title { font-weight: bold; font-size: 16px; margin: 8px 0; text-align: center; }
+
+  /* Bottom slice on reversed pages (Page 2 & 4) */
+  .slice-bottom .day-viewport { height: calc(var(--total-h) - var(--slice1-h)); }
+  .slice-bottom .day-inner   { transform: translateY(calc(-1 * var(--slice1-h))); }
+
+  /* ====== CONTAINERS 3 & 4 (3 columns with slicing) ====== */
+  .container { box-sizing: border-box; margin: 0; padding: 1mm; border: 3px solid transparent; border-radius: 6px; display: grid; }
+
+  .container-3, .container-4 {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--col-gap);
+    margin-top: 5mm; /* only shows if present */
+    border-color: #fff;
+  }
+
+  /* Viewport for 3-col slices (top/bottom) */
+  .day-viewport-34 {
+    box-sizing: border-box;
+    border: 1px solid #005b96;
+    border-radius: 6px;
+    background: #fff;
+    overflow: hidden;
+    height: var(--slice1-h-34);  /* top slice by default */
+  }
+  .day-inner-34 { height: var(--total-h-34); box-sizing: border-box; }
+
+  .day-inner-34 .day-box {
+    height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+
+  /* Bottom slice for container-4 */
+  .slice-bottom-34 .day-viewport-34 { height: calc(var(--total-h-34) - var(--slice1-h-34)); }
+  .slice-bottom-34 .day-inner-34   { transform: translateY(calc(-1 * var(--slice1-h-34))); }
+
+  /* Keep items intact visually */
+  @media print {
+    .day-viewport, .day-inner, .day-viewport-34, .day-inner-34,
+    .day-box, .event-box, .task, .event, .task-item {
+      page-break-inside: avoid; break-inside: avoid;
+      -webkit-column-break-inside: avoid; -webkit-region-break-inside: avoid;
+    }
+    h1, h2, .task-list-header, #page-header { display: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div id="print-root"></div>
+  <script>
+    const payload = {
+      page1: ${JSON.stringify(page1)},   // first 4 days, normal (top slice)
+      page2: ${JSON.stringify(page2)},   // same 4 days, reversed (bottom slice)
+
+      c3: ${JSON.stringify(c34)},        // days 5–7 normal (top slice)
+      c4: ${JSON.stringify(c34REV)}      // days 5–7 reversed (bottom slice)
+    };
+
+    const root = document.getElementById('print-root');
+
+    /* ====== container-1 page builders (unchanged) ====== */
+    function makeSlicedCard(html) {
+      const wrap = document.createElement('div');
+      wrap.className = 'day-viewport';
+      const inner = document.createElement('div');
+      inner.className = 'day-inner';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      if (node) inner.appendChild(node);
+      wrap.appendChild(inner);
+      return wrap;
+    }
+
+    function buildExactPage(htmlArray, { reversed=false, label="" } = {}) {
+      const page = document.createElement('div');
+      page.className = 'print-page' + (reversed ? ' slice-bottom' : '');
+      if (label) page.setAttribute('data-print-page', label);
+
+      const cont = document.createElement('div');
+      cont.className = 'container-4col';
+
+      (htmlArray.slice(0, 4)).forEach(html => {
+        const card = makeSlicedCard(html);
+        cont.appendChild(card);
+      });
+
+      page.appendChild(cont);
+      root.appendChild(page);
+    }
+
+    /* ====== container-3/4 (3 columns) builders with slicing ====== */
+    function makeSlicedCard34(html) {
+      const wrap = document.createElement('div');
+      wrap.className = 'day-viewport-34';
+      const inner = document.createElement('div');
+      inner.className = 'day-inner-34';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      if (node) inner.appendChild(node);
+      wrap.appendChild(inner);
+      return wrap;
+    }
+
+    function buildContainer34(htmlArray, { reversed=false, which=3 } = {}) {
+      const cont = document.createElement('div');
+      cont.className = 'container ' + (which === 3 ? 'container-3' : 'container-4') + (reversed ? ' slice-bottom-34' : '');
+      htmlArray.forEach(html => {
+        const card = makeSlicedCard34(html);
+        cont.appendChild(card);
+      });
+      root.appendChild(cont);
+    }
+
+    /* ====== Build exactly like your current flow (pages 1–4), then containers 3 & 4 ====== */
+    buildExactPage(payload.page1, { reversed: false, label: '1' }); // Page 1 (top slice)
+    buildExactPage(payload.page2, { reversed: true,  label: '2' }); // Page 2 (bottom slice)
+
+
+    // Container 3: days 5–7 normal (top slice)
+    if (payload.c3 && payload.c3.length) {
+      buildContainer34(payload.c3, { reversed: false, which: 3 });
+    }
+    // Container 4: days 5–7 reversed (bottom slice)
+    if (payload.c4 && payload.c4.length) {
+      buildContainer34(payload.c4, { reversed: true, which: 4 });
+    }
+
+    window.addEventListener('load', () => {
+      window.print();
+      window.close();
+    });
+  </script>
+</body>
+</html>
+  `);
+
+  printWindow.document.close();
+};
+
+
+
 
   const uploadTasksJSON = (event) => {
     const file = event.target.files[0];
@@ -820,7 +1235,7 @@ export default function TaskListifyPage() {
           </button>
         )}
 
-        {/* Task List by Day */}
+        {/* Task List by Day*/}
         <TaskList
           tasks={removeMode ? modifiedTasks : tasks}
           layout={layout}
@@ -986,6 +1401,9 @@ export default function TaskListifyPage() {
             <label>
               Quick Print gives the option to save list as a PDF for viewing, or send it automatically to
               print screen:
+            </label>
+            <label>
+              ([ADVANCED]Side note, long edge flip printing only works if there are 4 elements in the container 1)
             </label>
             <button
               onClick={handleQuickPrint}
