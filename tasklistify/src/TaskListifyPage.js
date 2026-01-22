@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import TaskListify from "./TaskListify";
 import TaskList from "./TaskList";
@@ -23,12 +23,25 @@ export default function TaskListifyPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [modifiedTasks, setModifiedTasks] = useState([]);
 
-  const [showTaskNameRequired, setShowTaskNameRequired] = useState(true); 
+
+  const [showTaskNameRequired, setShowTaskNameRequired] = useState(true);
   const [requiredFields, setRequiredFields] = useState([]);
 
   // New state variables for priority
   const [priority, setPriority] = useState("");
   const [sortByPriority, setSortByPriority] = useState("None");
+
+  // New state variables for Edit Mode
+  const [editMode, setEditMode] = useState(false);
+  const [editedTasks, setEditedTasks] = useState([]);
+
+  // Per-day manual ordering for drag/drop (stores event keys per day)
+  const [orderByDay, setOrderByDay] = useState({});
+
+  // Keep scroll position stable when toggling modes from bottom controls
+  const preserveScrollRef = useRef(false);
+  const preservedScrollYRef = useRef(0);
+
 
   const navigate = useNavigate();
 
@@ -53,6 +66,10 @@ export default function TaskListifyPage() {
 
     const storedSortByPriority = localStorage.getItem("sortByPriority");
     if (storedSortByPriority) setSortByPriority(storedSortByPriority);
+
+    // NEW: Load drag ordering
+    const storedOrderByDay = JSON.parse(localStorage.getItem("orderByDay")) || {};
+    setOrderByDay(storedOrderByDay);
   }, []);
 
   // Save tasks and settings to localStorage
@@ -76,6 +93,11 @@ export default function TaskListifyPage() {
     localStorage.setItem("sortByPriority", sortByPriority);
   }, [sortByPriority]);
 
+  // NEW: Save drag ordering
+  useEffect(() => {
+    localStorage.setItem("orderByDay", JSON.stringify(orderByDay));
+  }, [orderByDay]);
+
   // Handle Remove Mode toggle
   useEffect(() => {
     if (removeMode) {
@@ -85,6 +107,29 @@ export default function TaskListifyPage() {
     }
   }, [removeMode, tasks]);
 
+  // NEW: Handle Edit Mode toggle
+  useEffect(() => {
+    if (editMode) {
+      setEditedTasks(JSON.parse(JSON.stringify(tasks))); // Deep copy
+    } else {
+      setEditedTasks([]);
+    }
+  }, [editMode, tasks]);
+
+    useLayoutEffect(() => {
+      if (!preserveScrollRef.current) return;
+
+      window.scrollTo(0, preservedScrollYRef.current);
+
+      // extra frame to handle layout reflow from edit UI appearing/disappearing
+      requestAnimationFrame(() => {
+        window.scrollTo(0, preservedScrollYRef.current);
+        preserveScrollRef.current = false;
+      });
+    }, [removeMode, editMode]);
+
+
+
   // Utility: Get Final Times
   const getFinalTimes = () => {
     return timesOfTheDay.map(({ hour, minute, amPm, note }) => {
@@ -92,9 +137,10 @@ export default function TaskListifyPage() {
         hour && minute && amPm
           ? `${hour.padStart(2, "0")}:${minute.padStart(2, "0")} ${amPm}`
           : "";
-      return { start: time, note: note || "" };
+      return { start: time, note: note || "", priority: "" }; // <-- add priority here
     });
   };
+
 
   // Handle adding a task
   const handleAddTask = () => {
@@ -196,8 +242,446 @@ export default function TaskListifyPage() {
     link.click();
   };
 
+  // =========================
+  // NEW: Edit + Drag handlers
+  // =========================
 
-// //COMPLETE WORKING VERSION FOR SHORT EDGE FLIP
+  // Event key format for ordering (stable and day-specific)
+  const makeEventKey = (taskId, day, occurrenceIndex) =>
+    `${taskId}::${day}::${occurrenceIndex}`;
+
+  // Update priority (edit mode)
+  // scope = "one" or "all"
+  const handleEditSetPriority = (taskId, day, occurrenceIndex, newPriority, scope = "one") => {
+    setEditedTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+
+        // Deep-ish copy of nested structure we mutate
+        const taskTimesPerDay = { ...t.taskTimesPerDay };
+
+        if (scope === "all") {
+          // Apply to every occurrence on every day for this task
+          Object.keys(taskTimesPerDay).forEach((d) => {
+            taskTimesPerDay[d] = (taskTimesPerDay[d] || []).map((occ) => ({
+              ...occ,
+              priority: newPriority,
+            }));
+          });
+
+          return {
+            ...t,
+            priority: newPriority, // keep task-level default in sync too
+            taskTimesPerDay,
+          };
+        }
+        // scope === "one": only the targeted occurrence
+        const arr = [...(taskTimesPerDay[day] || [])];
+        if (!arr[occurrenceIndex]) return t;
+
+        arr[occurrenceIndex] = {
+          ...arr[occurrenceIndex],
+          priority: newPriority,
+        };
+
+        taskTimesPerDay[day] = arr;
+
+        return { ...t, taskTimesPerDay };
+      })
+    );
+  };
+
+
+  // Update the manual order for a given day (expects an array of event keys)
+  const handleReorderDay = (day, newOrderedKeys) => {
+    setOrderByDay((prev) => ({
+      ...prev,
+      [day]: newOrderedKeys,
+    }));
+  };
+
+  const handleSaveEdits = () => {
+    preserveScrollNow();
+    setTasks(editedTasks);
+    setEditMode(false);
+    alert("Edits saved.");
+  };
+
+
+    const preserveScrollNow = () => {
+    preservedScrollYRef.current = window.scrollY || 0;
+    preserveScrollRef.current = true;
+  };
+
+    // --- NEW: mutually-exclusive toggles for Remove vs Edit ---
+    const toggleRemoveMode = () => {
+      preserveScrollNow();
+      setRemoveMode((prev) => {
+        const next = !prev;
+        if (next) setEditMode(false);
+        return next;
+      });
+    };
+
+    const toggleEditMode = () => {
+      preserveScrollNow();
+      setEditMode((prev) => {
+        const next = !prev;
+        if (next) setRemoveMode(false);
+        return next;
+      });
+    };
+
+
+
+  const handleSaveChanges = () => {
+    preserveScrollNow();
+    setTasks(modifiedTasks);
+    setRemoveMode(false);
+    alert("Changes saved.");
+  };
+
+
+  // =========================
+// NEW: Edit handlers (name, note, time)
+// =========================
+
+// time string helpers (your stored format is "HH:MM AM/PM")
+const clampInt = (v, min, max) => {
+  const n = parseInt(v, 10);
+  if (Number.isNaN(n)) return "";
+  return String(Math.min(Math.max(n, min), max));
+};
+
+const buildTimeString = ({ hour, minute, amPm }) => {
+  // if any field missing, treat as blank time
+  if (!hour || !minute || !amPm) return "";
+  const hh = clampInt(hour, 1, 12);
+  const mm = clampInt(minute, 0, 59);
+  if (!hh || mm === "" || !["AM", "PM"].includes(amPm)) return "";
+  return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")} ${amPm}`;
+};
+
+// 1) Edit Task Name (supports SetOne vs SetAll)
+// scope: "one" | "all"
+// - "all": updates task.taskName (global)
+// - "one": sets occ.name override on that specific occurrence only
+const handleEditTaskName = (taskId, day, occurrenceIndex, newName, scope = "one") => {
+  setEditedTasks((prev) =>
+    prev.map((t) => {
+      if (t.id !== taskId) return t;
+
+      // SetAll: task-level rename
+      if (scope === "all") {
+        // Optional: clear per-occurrence overrides so they match the global name again
+        const taskTimesPerDay = { ...t.taskTimesPerDay };
+        Object.keys(taskTimesPerDay).forEach((d) => {
+          taskTimesPerDay[d] = (taskTimesPerDay[d] || []).map((occ) => {
+            const { name, ...rest } = occ || {};
+            return rest; // remove occ.name override
+          });
+        });
+        return { ...t, taskName: newName, taskTimesPerDay };
+      }
+
+      // SetOne: occurrence-level name override
+      const taskTimesPerDay = { ...t.taskTimesPerDay };
+      const arr = [...(taskTimesPerDay[day] || [])];
+      if (!arr[occurrenceIndex]) return t;
+
+      arr[occurrenceIndex] = { ...(arr[occurrenceIndex] || {}), name: newName };
+      taskTimesPerDay[day] = arr;
+
+      return { ...t, taskTimesPerDay };
+    })
+  );
+};
+
+
+// 2) Edit Note (per occurrence)
+// scope: "one" | "all"
+const handleEditSetNote = (
+  taskId,
+  day,
+  occurrenceIndex,
+  newNote,
+  scope = "one"
+) => {
+  setEditedTasks((prev) =>
+    prev.map((t) => {
+      if (t.id !== taskId) return t;
+
+      const taskTimesPerDay = { ...t.taskTimesPerDay };
+
+      if (scope === "all") {
+        Object.keys(taskTimesPerDay).forEach((d) => {
+          taskTimesPerDay[d] = (taskTimesPerDay[d] || []).map((occ) => ({
+            ...occ,
+            note: newNote ?? "",
+          }));
+        });
+        return { ...t, taskTimesPerDay };
+      }
+
+      const arr = [...(taskTimesPerDay[day] || [])];
+      if (!arr[occurrenceIndex]) return t;
+
+      arr[occurrenceIndex] = {
+        ...arr[occurrenceIndex],
+        note: newNote ?? "",
+      };
+
+      taskTimesPerDay[day] = arr;
+      return { ...t, taskTimesPerDay };
+    })
+  );
+};
+
+// 3) Edit Time (per occurrence)
+// inputs are the three fields, you can pass strings
+// scope: "one" | "all"
+const handleEditSetTime = (
+  taskId,
+  day,
+  occurrenceIndex,
+  { hour, minute, amPm },
+  scope = "one"
+) => {
+  const nextStart = buildTimeString({ hour, minute, amPm });
+
+  setEditedTasks((prev) =>
+    prev.map((t) => {
+      if (t.id !== taskId) return t;
+
+      const taskTimesPerDay = { ...t.taskTimesPerDay };
+
+      if (scope === "all") {
+        Object.keys(taskTimesPerDay).forEach((d) => {
+          taskTimesPerDay[d] = (taskTimesPerDay[d] || []).map((occ) => ({
+            ...occ,
+            start: nextStart,
+          }));
+        });
+        return { ...t, taskTimesPerDay };
+      }
+
+      const arr = [...(taskTimesPerDay[day] || [])];
+      if (!arr[occurrenceIndex]) return t;
+
+      arr[occurrenceIndex] = {
+        ...arr[occurrenceIndex],
+        start: nextStart,
+      };
+
+      taskTimesPerDay[day] = arr;
+      return { ...t, taskTimesPerDay };
+    })
+  );
+};
+
+
+// ===== Reusable controls =====
+
+// Top controls (include Add Task)
+const TopModeControls = (
+  <>
+    {/* Add Task only when not editing/removing */}
+    {!removeMode && !editMode && (
+      <button
+        onClick={handleAddTask}
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "15px",
+          backgroundColor: "#005b96",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          fontSize: "1em",
+        }}
+      >
+        Add Task
+      </button>
+    )}
+
+    {/* Remove */}
+    {!editMode && (
+      <button
+        onClick={toggleRemoveMode}
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "10px",
+          backgroundColor: "#005b96",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          fontSize: "1em",
+        }}
+      >
+        {removeMode ? "Untoggle Remove Task" : "Remove Tasks"}
+      </button>
+    )}
+
+    {removeMode && (
+      <button
+        onClick={handleSaveChanges}
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "10px",
+          backgroundColor: "#009605",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          fontSize: "1em",
+        }}
+      >
+        Save Removed Tasks
+      </button>
+    )}
+
+    {/* Edit */}
+    {!removeMode && (
+      <button
+        onClick={() => {
+          toggleEditMode();
+
+        }}
+
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "10px",
+          backgroundColor: "#005b96",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          fontSize: "1em",
+        }}
+      >
+        {editMode ? "Untoggle Edit Tasks" : "Edit Tasks"}
+      </button>
+    )}
+
+    {editMode && (
+      <button
+        onClick={handleSaveEdits}
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "10px",
+          backgroundColor: "#009605",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          fontSize: "1em",
+        }}
+      >
+        Save Edited Tasks
+      </button>
+    )}
+  </>
+);
+
+
+const BottomModeControls = (
+  <>
+    {/* Remove */}
+    {!editMode && (
+      <button
+        onClick={() => {
+          preserveScrollNow();
+          toggleRemoveMode();
+        }}
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "10px",
+          backgroundColor: "#005b96",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          fontSize: "1em",
+        }}
+      >
+        {removeMode ? "Untoggle Remove Task" : "Remove Tasks"}
+      </button>
+    )}
+
+    {removeMode && (
+      <button
+        onClick={() => {
+          preserveScrollNow();
+          handleSaveChanges();
+        }}
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "10px",
+          backgroundColor: "#009605",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          fontSize: "1em",
+        }}
+      >
+        Save Removed Tasks
+      </button>
+    )}
+
+    {/* Edit */}
+    {!removeMode && (
+      <button
+        onClick={() => {
+          preserveScrollNow();
+          toggleEditMode();
+        }}
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "10px",
+          backgroundColor: "#005b96",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          fontSize: "1em",
+        }}
+      >
+        {editMode ? "Untoggle Edit Tasks" : "Edit Tasks"}
+      </button>
+    )}
+
+    {editMode && (
+      <button
+        onClick={() => {
+          preserveScrollNow();
+          handleSaveEdits();
+        }}
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "10px",
+          backgroundColor: "#009605",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          fontSize: "1em",
+        }}
+      >
+        Save Edited Tasks
+      </button>
+    )}
+  </>
+);
+
+
+
+// //COMPLETE WORKING VERSION FOR NO SHORT EDGE FLIP
+// // a b c d
+// // a b c d
+// //  e f g
+// //  e f g
 // const handleQuickPrint = () => {
 //   const taskSection = document.getElementById("task-list-section");
 //   if (!taskSection) {
@@ -413,7 +897,22 @@ export default function TaskListifyPage() {
 
 
 
+//COMPLETE WORKING VERSION FOR SHORT EDGE FLIP
+// a b c d
+// d c b a
+//  e f g
+//  g f e
 const handleQuickPrint = () => {
+  if (editMode) {
+    alert("Please finish editing before going to the print screen.");
+    return;
+  }
+
+  if (removeMode) {
+    alert("Please finish removing tasks before going to the print screen.");
+    return;
+  }
+
   const taskSection = document.getElementById("task-list-section");
   if (!taskSection) {
     alert("Couldn't find #task-list-section.");
@@ -688,6 +1187,12 @@ const handleQuickPrint = () => {
 
 
 
+
+
+
+
+
+
   const uploadTasksJSON = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -858,11 +1363,6 @@ const handleQuickPrint = () => {
     });
   };
 
-  const handleSaveChanges = () => {
-    setTasks(modifiedTasks);
-    setRemoveMode(false);
-    alert("Changes saved.");
-  };
 
   return (
     <div
@@ -1004,8 +1504,6 @@ const handleQuickPrint = () => {
             )}
           </div>
 
-
-
           {/* Priority Level Selection */}
           <div style={{ marginBottom: "15px" }}>
             <label>Priority Level:</label>
@@ -1026,225 +1524,188 @@ const handleQuickPrint = () => {
               <option value="High">High Priority (Red)</option>
             </select>
 
-
-          <div style={{ marginTop: "15px" }}>
-            <label>Would You Like to Select a Time? / Add a note to event?</label>
-            <input
-              type="checkbox"
-              checked={showTime}
-              onChange={() => setShowTime(!showTime)}
-              style={{ marginLeft: "10px", transform: "scale(1.5)" }}
-            />
-          </div>
-
-          {showTime && (
             <div style={{ marginTop: "15px" }}>
-              {timesOfTheDay.map((time, index) => {
-                const isHourRequired = requiredFields.includes(`hour-${index}`);
-                const isMinuteRequired = requiredFields.includes(`minute-${index}`);
-                const isAmPmRequired = requiredFields.includes(`amPm-${index}`);
-
-                return (
-                  <div
-                    key={index}
-                    style={{
-                      marginBottom: "15px",
-                      position: "relative",
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: "40px" }}>
-                      {/* Hour Input */}
-                      <div style={{ position: "relative", width: "30%" }}>
-                        <input
-                          type="number"
-                          placeholder="HH"
-                          value={time.hour}
-                          min={1}
-                          max={12}
-                          onChange={(e) => handleTimeChange(index, "hour", e.target.value)}
-                          style={{
-                            width: "100%",
-                            padding: "10px",
-                            border: "1px solid #005b96",
-                            borderRadius: "5px",
-                            textAlign: "center",
-                          }}
-                        />
-                        {isHourRequired && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: "-20px",
-                              left: "0",
-                              backgroundColor: "#ffdddd",
-                              padding: "2px 5px",
-                              borderRadius: "3px",
-                              fontSize: "0.8em",
-                              cursor: "default",
-                            }}
-                            title="Required Field"
-                          >
-                            Req. Field
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Minute Input */}
-                      <div style={{ position: "relative", width: "30%" }}>
-                        <input
-                          type="number"
-                          placeholder="MM"
-                          value={time.minute}
-                          min={0}
-                          max={59}
-                          onChange={(e) => handleTimeChange(index, "minute", e.target.value)}
-                          style={{
-                            width: "100%",
-                            padding: "10px",
-                            border: "1px solid #005b96",
-                            borderRadius: "5px",
-                            textAlign: "center",
-                          }}
-                        />
-                        {isMinuteRequired && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: "-20px",
-                              left: "0",
-                              backgroundColor: "#ffdddd",
-                              padding: "2px 5px",
-                              borderRadius: "3px",
-                              fontSize: "0.8em",
-                              cursor: "default",
-                            }}
-                            title="Required Field"
-                          >
-                            Req. Field
-                          </div>
-                        )}
-                      </div>
-
-                      {/* AM/PM Select */}
-                      <div style={{ position: "relative", width: "30%" }}>
-                        <select
-                          value={time.amPm}
-                          onChange={(e) => handleTimeChange(index, "amPm", e.target.value)}
-                          style={{
-                            width: "100%",
-                            padding: "10px",
-                            border: "1px solid #005b96",
-                            borderRadius: "5px",
-                          }}
-                        >
-                          <option value="">AM/PM</option>
-                          <option value="AM">AM</option>
-                          <option value="PM">PM</option>
-                        </select>
-                        {isAmPmRequired && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: "-20px",
-                              left: "0",
-                              backgroundColor: "#ffdddd",
-                              padding: "2px 5px",
-                              borderRadius: "3px",
-                              fontSize: "0.8em",
-                              cursor: "default",
-                            }}
-                            title="Required Field"
-                          >
-                            Req. Field
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Note for Event"
-                      value={time.note}
-                      onChange={(e) => handleTimeChange(index, "note", e.target.value)}
-                      style={{
-                        width: "97.3%",
-                        marginTop: "5px",
-                        padding: "10px",
-                        border: "1px solid #005b96",
-                        borderRadius: "5px",
-                      }}
-                    />
-                  </div>
-                );
-              })}
+              <label>Would You Like to Select a Time? / Add a note to event?</label>
+              <input
+                type="checkbox"
+                checked={showTime}
+                onChange={() => setShowTime(!showTime)}
+                style={{ marginLeft: "10px", transform: "scale(1.5)" }}
+              />
             </div>
-          )}
 
+            {showTime && (
+              <div style={{ marginTop: "15px" }}>
+                {timesOfTheDay.map((time, index) => {
+                  const isHourRequired = requiredFields.includes(`hour-${index}`);
+                  const isMinuteRequired = requiredFields.includes(`minute-${index}`);
+                  const isAmPmRequired = requiredFields.includes(`amPm-${index}`);
+
+                  return (
+                    <div
+                      key={index}
+                      style={{
+                        marginBottom: "15px",
+                        position: "relative",
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: "40px" }}>
+                        {/* Hour Input */}
+                        <div style={{ position: "relative", width: "30%" }}>
+                          <input
+                            type="number"
+                            placeholder="HH"
+                            value={time.hour}
+                            min={1}
+                            max={12}
+                            onChange={(e) => handleTimeChange(index, "hour", e.target.value)}
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              border: "1px solid #005b96",
+                              borderRadius: "5px",
+                              textAlign: "center",
+                            }}
+                          />
+                          {isHourRequired && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "-20px",
+                                left: "0",
+                                backgroundColor: "#ffdddd",
+                                padding: "2px 5px",
+                                borderRadius: "3px",
+                                fontSize: "0.8em",
+                                cursor: "default",
+                              }}
+                              title="Required Field"
+                            >
+                              Req. Field
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Minute Input */}
+                        <div style={{ position: "relative", width: "30%" }}>
+                          <input
+                            type="number"
+                            placeholder="MM"
+                            value={time.minute}
+                            min={0}
+                            max={59}
+                            onChange={(e) => handleTimeChange(index, "minute", e.target.value)}
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              border: "1px solid #005b96",
+                              borderRadius: "5px",
+                              textAlign: "center",
+                            }}
+                          />
+                          {isMinuteRequired && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "-20px",
+                                left: "0",
+                                backgroundColor: "#ffdddd",
+                                padding: "2px 5px",
+                                borderRadius: "3px",
+                                fontSize: "0.8em",
+                                cursor: "default",
+                              }}
+                              title="Required Field"
+                            >
+                              Req. Field
+                            </div>
+                          )}
+                        </div>
+
+                        {/* AM/PM Select */}
+                        <div style={{ position: "relative", width: "30%" }}>
+                          <select
+                            value={time.amPm}
+                            onChange={(e) => handleTimeChange(index, "amPm", e.target.value)}
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              border: "1px solid #005b96",
+                              borderRadius: "5px",
+                            }}
+                          >
+                            <option value="">AM/PM</option>
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                          </select>
+                          {isAmPmRequired && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "-20px",
+                                left: "0",
+                                backgroundColor: "#ffdddd",
+                                padding: "2px 5px",
+                                borderRadius: "3px",
+                                fontSize: "0.8em",
+                                cursor: "default",
+                              }}
+                              title="Required Field"
+                            >
+                              Req. Field
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Note for Event"
+                        value={time.note}
+                        onChange={(e) => handleTimeChange(index, "note", e.target.value)}
+                        style={{
+                          width: "97.3%",
+                          marginTop: "5px",
+                          padding: "10px",
+                          border: "1px solid #005b96",
+                          borderRadius: "5px",
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-
-
         {/* Buttons */}
-        <button
-          onClick={handleAddTask}
-          style={{
-            width: "100%",
-            padding: "12px",
-            marginTop: "15px",
-            backgroundColor: "#005b96",
-            color: "#fff",
-            border: "none",
-            borderRadius: "5px",
-            fontSize: "1em",
-          }}
-        >
-          Add Task
-        </button>
-        <button
-          onClick={() => setRemoveMode(!removeMode)}
-          style={{
-            width: "100%",
-            padding: "12px",
-            marginTop: "10px",
-            backgroundColor: "#005b96",
-            color: "#fff",
-            border: "none",
-            borderRadius: "5px",
-            fontSize: "1em",
-          }}
-        >
-          {removeMode ? "Untoggle Remove Task" : "Remove Tasks"}
-        </button>
 
-        {/* Save Changes Button */}
-        {removeMode && (
-          <button
-            onClick={handleSaveChanges}
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginTop: "10px",
-              backgroundColor: "#005b96",
-              color: "#fff",
-              border: "none",
-              borderRadius: "5px",
-              fontSize: "1em",
-            }}
-          >
-            Save Removed Tasks
-          </button>
-        )}
+        {TopModeControls}
+
 
         {/* Task List by Day*/}
         <TaskList
-          tasks={removeMode ? modifiedTasks : tasks}
+          tasks={removeMode ? modifiedTasks : editMode ? editedTasks : tasks}
           layout={layout}
           getOrderedDaysOfWeek={getOrderedDaysOfWeek}
           removeMode={removeMode}
           onRemoveTask={handleRemoveTask}
           onRemoveOccurrence={handleRemoveOccurrence}
           sortByPriority={sortByPriority}
+          editMode={editMode}
+          onSetPriority={handleEditSetPriority}
+          onEditTaskName={handleEditTaskName}
+          onEditNote={handleEditSetNote}
+          onEditTime={handleEditSetTime}
+          orderByDay={orderByDay}
+          onReorderDay={handleReorderDay}
+          makeEventKey={makeEventKey}
         />
+
+
+        <div style={{ marginTop: "15px" }}>
+          {BottomModeControls}
+        </div>
 
         {/* Settings */}
         <button
@@ -1364,12 +1825,10 @@ const handleQuickPrint = () => {
 
             <div style={{ marginTop: "15px" }} />
             <label>
-              Upload Task list lets you import JSON Files to work from an existing list template. 
+              Upload Task list lets you import JSON Files to work from an existing list template.
             </label>
             <div style={{ marginTop: "0px" }} />
-            <label>
-              (This will replace what you have written with the uploaded list, it will not add to it):
-            </label>  
+            <label>(This will replace what you have written with the uploaded list, it will not add to it):</label>
 
             <label
               style={{
