@@ -4,6 +4,14 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import TaskListify from "./TaskListify";
 import TaskList from "./TaskList";
+import {
+  buildTimeString,
+  makeEventKey,
+  getOrderedDays as orderDays,
+  getVisibleDays,
+} from "./utils/schedule";
+import { button, SAVE_GREEN } from "./styles";
+import useLocalStorage from "./hooks/useLocalStorage";
 
 export default function TaskListifyPage() {
   const [taskName, setTaskName] = useState("");
@@ -14,10 +22,14 @@ export default function TaskListifyPage() {
   const [timesOfTheDay, setTimesOfTheDay] = useState([
     { hour: "", minute: "", amPm: "", note: "" },
   ]);
-  const [layout, setLayout] = useState("column");
+  const [layout, setLayout] = useLocalStorage("layout", "column", { raw: true });
   const [tasks, setTasks] = useState([]);
   const [removeMode, setRemoveMode] = useState(false);
-  const [firstDayOfWeek, setFirstDayOfWeek] = useState("Sunday");
+  const [firstDayOfWeek, setFirstDayOfWeek] = useLocalStorage(
+    "firstDayOfWeek",
+    "Sunday",
+    { raw: true }
+  );
   const [hiddenDays, setHiddenDays] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -29,7 +41,11 @@ export default function TaskListifyPage() {
 
   // New state variables for priority
   const [priority, setPriority] = useState("");
-  const [sortByPriority, setSortByPriority] = useState("None");
+  const [sortByPriority, setSortByPriority] = useLocalStorage(
+    "sortByPriority",
+    "None",
+    { raw: true }
+  );
 
   // New state variables for Edit Mode
   const [editMode, setEditMode] = useState(false);
@@ -37,6 +53,68 @@ export default function TaskListifyPage() {
 
   // Per-day manual ordering for drag/drop (stores event keys per day)
   const [orderByDay, setOrderByDay] = useState({});
+
+  // Undo / Redo
+  const [undoStack, setUndoStack] = useState([]);
+  const [redoStack, setRedoStack] = useState([]);
+
+  // Search / filter
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Custom day column order (null = use default from firstDayOfWeek)
+  const [customDayOrder, setCustomDayOrder] = useState(null);
+
+  // Completed occurrences (Set of eventKeys)
+  const [completedOccurrences, setCompletedOccurrences] = useState(new Set());
+
+  // Colour theme
+  const [theme, setTheme] = useLocalStorage("theme", "ocean", { raw: true });
+
+  // Font family for the app
+  const [fontFamily, setFontFamily] = useLocalStorage("fontFamily", "system", {
+    raw: true,
+  });
+
+  // Print flip edge: "short" (current, column-reversed) or "long" (no reverse)
+  const [printFlipEdge, setPrintFlipEdge] = useLocalStorage(
+    "printFlipEdge",
+    "short",
+    { raw: true }
+  );
+
+  // Max events allowed per day (keeps print layout within 2-page slice)
+  const MAX_EVENTS_PER_DAY = 14;
+
+  // Custom day labels (e.g. "Monday" -> "Chest")
+  const [customDayNames, setCustomDayNames] = useState({});
+
+  // Two-step delete-list confirmation
+  const [confirmDeleteList, setConfirmDeleteList] = useState(false);
+
+  const themes = {
+    ocean:     { bg: "#b3cde3", primary: "#005b96", secondary: "#003f69" },
+    sunset:    { bg: "#ffb347", primary: "#c0392b", secondary: "#922b21" },
+    forest:    { bg: "#a8d5a2", primary: "#2d6a4f", secondary: "#1b4332" },
+    purple:    { bg: "#d7c4e8", primary: "#6a0dad", secondary: "#4a0080" },
+    rose:      { bg: "#f4c2c2", primary: "#b5446e", secondary: "#8b2252" },
+    crimson:   { bg: "#f5b7b1", primary: "#922b21", secondary: "#641e16" },
+    tangerine: { bg: "#ffd8a8", primary: "#d35400", secondary: "#873600" },
+    lemon:     { bg: "#fff3b0", primary: "#b7950b", secondary: "#7d6608" },
+    mint:      { bg: "#b8e0d2", primary: "#117a65", secondary: "#0b5345" },
+    sky:       { bg: "#aed6f1", primary: "#1f618d", secondary: "#154360" },
+    indigo:    { bg: "#c0bcd9", primary: "#2c3e83", secondary: "#1a2457" },
+    slate:     { bg: "#d5dbdb", primary: "#34495e", secondary: "#17202a" },
+  };
+  const clr = themes[theme] || themes.ocean;
+
+  const fonts = {
+    system:  `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`,
+    serif:   `Georgia, 'Times New Roman', serif`,
+    mono:    `'Courier New', Consolas, monospace`,
+    rounded: `'Trebuchet MS', 'Lucida Grande', sans-serif`,
+    classic: `'Arial', 'Helvetica Neue', sans-serif`,
+  };
+  const fontStack = fonts[fontFamily] || fonts.system;
 
   // Keep scroll position stable when toggling modes from bottom controls
   const preserveScrollRef = useRef(false);
@@ -55,21 +133,24 @@ export default function TaskListifyPage() {
     const loggedInStatus = localStorage.getItem("isLoggedIn");
     setIsLoggedIn(loggedInStatus === "true");
 
-    const storedLayout = localStorage.getItem("layout");
-    if (storedLayout) setLayout(storedLayout);
-
-    const storedFirstDayOfWeek = localStorage.getItem("firstDayOfWeek");
-    if (storedFirstDayOfWeek) setFirstDayOfWeek(storedFirstDayOfWeek);
+    // layout, firstDayOfWeek, sortByPriority, theme, fontFamily and
+    // printFlipEdge are loaded and persisted by useLocalStorage above.
 
     const storedHiddenDays = JSON.parse(localStorage.getItem("hiddenDays")) || [];
     setHiddenDays(storedHiddenDays);
 
-    const storedSortByPriority = localStorage.getItem("sortByPriority");
-    if (storedSortByPriority) setSortByPriority(storedSortByPriority);
-
     // NEW: Load drag ordering
     const storedOrderByDay = JSON.parse(localStorage.getItem("orderByDay")) || {};
     setOrderByDay(storedOrderByDay);
+
+    const storedCustomDayNames = JSON.parse(localStorage.getItem("customDayNames")) || {};
+    setCustomDayNames(storedCustomDayNames);
+
+    const storedCompleted = JSON.parse(localStorage.getItem("completedOccurrences")) || [];
+    setCompletedOccurrences(new Set(storedCompleted));
+
+    const storedDayOrder = JSON.parse(localStorage.getItem("customDayOrder"));
+    if (storedDayOrder) setCustomDayOrder(storedDayOrder);
   }, []);
 
   // Save tasks and settings to localStorage
@@ -78,25 +159,42 @@ export default function TaskListifyPage() {
   }, [tasks]);
 
   useEffect(() => {
-    localStorage.setItem("layout", layout);
-  }, [layout]);
+    localStorage.setItem("customDayNames", JSON.stringify(customDayNames));
+  }, [customDayNames]);
 
   useEffect(() => {
-    localStorage.setItem("firstDayOfWeek", firstDayOfWeek);
-  }, [firstDayOfWeek]);
+    localStorage.setItem("completedOccurrences", JSON.stringify([...completedOccurrences]));
+  }, [completedOccurrences]);
+
+  useEffect(() => {
+    localStorage.setItem("customDayOrder", JSON.stringify(customDayOrder));
+  }, [customDayOrder]);
 
   useEffect(() => {
     localStorage.setItem("hiddenDays", JSON.stringify(hiddenDays));
   }, [hiddenDays]);
 
-  useEffect(() => {
-    localStorage.setItem("sortByPriority", sortByPriority);
-  }, [sortByPriority]);
-
   // NEW: Save drag ordering
   useEffect(() => {
     localStorage.setItem("orderByDay", JSON.stringify(orderByDay));
   }, [orderByDay]);
+
+  // Undo/Redo keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undoStack, redoStack]);
 
   // Handle Remove Mode toggle
   useEffect(() => {
@@ -119,13 +217,19 @@ export default function TaskListifyPage() {
     useLayoutEffect(() => {
       if (!preserveScrollRef.current) return;
 
-      window.scrollTo(0, preservedScrollYRef.current);
+      const y = preservedScrollYRef.current;
+      window.scrollTo(0, y);
 
-      // extra frame to handle layout reflow from edit UI appearing/disappearing
-      requestAnimationFrame(() => {
-        window.scrollTo(0, preservedScrollYRef.current);
-        preserveScrollRef.current = false;
-      });
+      // Re-assert scroll across several frames — edit/remove UI
+      // inflates row heights and the browser can otherwise clamp us
+      // to the top before the new layout settles.
+      let frames = 0;
+      const tick = () => {
+        window.scrollTo(0, y);
+        if (++frames < 6) requestAnimationFrame(tick);
+        else preserveScrollRef.current = false;
+      };
+      requestAnimationFrame(tick);
     }, [removeMode, editMode]);
 
 
@@ -141,6 +245,55 @@ export default function TaskListifyPage() {
     });
   };
 
+
+  // Undo / Redo helpers
+  const setTasksWithHistory = (newTasksOrFn) => {
+    setTasks((prev) => {
+      const next = typeof newTasksOrFn === "function" ? newTasksOrFn(prev) : newTasksOrFn;
+      setUndoStack((s) => [...s.slice(-19), prev]);
+      setRedoStack([]);
+      return next;
+    });
+  };
+
+  const handleUndo = () => {
+    setUndoStack((stack) => {
+      if (!stack.length) return stack;
+      const prev = stack[stack.length - 1];
+      setTasks((cur) => {
+        setRedoStack((r) => [...r, cur]);
+        return prev;
+      });
+      return stack.slice(0, -1);
+    });
+  };
+
+  const handleRedo = () => {
+    setRedoStack((stack) => {
+      if (!stack.length) return stack;
+      const next = stack[stack.length - 1];
+      setTasks((cur) => {
+        setUndoStack((u) => [...u, cur]);
+        return next;
+      });
+      return stack.slice(0, -1);
+    });
+  };
+
+  // Task completion toggle
+  const handleToggleComplete = (eventKey) => {
+    setCompletedOccurrences((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventKey)) next.delete(eventKey);
+      else next.add(eventKey);
+      return next;
+    });
+  };
+
+  // Reorder day columns
+  const handleReorderDays = (newOrder) => {
+    setCustomDayOrder(newOrder);
+  };
 
   // Handle adding a task
   const handleAddTask = () => {
@@ -199,6 +352,24 @@ export default function TaskListifyPage() {
 
     const days = daysMapping[eventDays] || taskListify.daysOfWeek;
 
+    // Enforce the print-capacity cap per day before adding
+    const extraPerDay = Math.max(1, dailyOccurences);
+    const overflow = days.find((day) => {
+      const existing = tasks.reduce((sum, t) => {
+        if (!t.days.includes(day)) return sum;
+        return sum + (t.taskTimesPerDay?.[day]?.length || 0);
+      }, 0);
+      return existing + extraPerDay > MAX_EVENTS_PER_DAY;
+    });
+
+    if (overflow) {
+      alert(
+        `Element cannot be added — ${overflow} already has the maximum of ${MAX_EVENTS_PER_DAY} events. ` +
+          `Remove an event from that day to free up space.`
+      );
+      return;
+    }
+
     const taskTimes = getFinalTimes();
 
     // Create taskTimesPerDay
@@ -208,14 +379,14 @@ export default function TaskListifyPage() {
     });
 
     const newTask = {
-      id: Date.now(),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       taskName,
       days,
       taskTimesPerDay,
       priority,
     };
 
-    setTasks((prevTasks) => [...prevTasks, newTask]);
+    setTasksWithHistory((prevTasks) => [...prevTasks, newTask]);
     resetForm();
   };
 
@@ -229,6 +400,27 @@ export default function TaskListifyPage() {
     setShowTaskNameRequired(true); // Show required field again
     setRequiredFields([]);
     setPriority("");
+  };
+
+  // Delete the entire current list (two-step confirmation via state)
+  const handleDeleteList = () => {
+    setTasksWithHistory([]);
+    setCompletedOccurrences(new Set());
+    setOrderByDay({});
+    setConfirmDeleteList(false);
+    alert("List deleted.");
+  };
+
+  const handleRenameDay = (day, label) => {
+    setCustomDayNames((prev) => {
+      const next = { ...prev };
+      if (!label || !label.trim() || label.trim() === day) {
+        delete next[day];
+      } else {
+        next[day] = label.trim();
+      }
+      return next;
+    });
   };
 
   // Download Tasks in JSON format
@@ -247,9 +439,6 @@ export default function TaskListifyPage() {
   // =========================
 
   // Event key format for ordering (stable and day-specific)
-  const makeEventKey = (taskId, day, occurrenceIndex) =>
-    `${taskId}::${day}::${occurrenceIndex}`;
-
   // Update priority (edit mode)
   // scope = "one" or "all"
   const handleEditSetPriority = (taskId, day, occurrenceIndex, newPriority, scope = "one") => {
@@ -302,7 +491,7 @@ export default function TaskListifyPage() {
 
   const handleSaveEdits = () => {
     preserveScrollNow();
-    setTasks(editedTasks);
+    setTasksWithHistory(editedTasks);
     setEditMode(false);
     alert("Edits saved.");
   };
@@ -336,7 +525,7 @@ export default function TaskListifyPage() {
 
   const handleSaveChanges = () => {
     preserveScrollNow();
-    setTasks(modifiedTasks);
+    setTasksWithHistory(modifiedTasks);
     setRemoveMode(false);
     alert("Changes saved.");
   };
@@ -347,20 +536,6 @@ export default function TaskListifyPage() {
 // =========================
 
 // time string helpers (your stored format is "HH:MM AM/PM")
-const clampInt = (v, min, max) => {
-  const n = parseInt(v, 10);
-  if (Number.isNaN(n)) return "";
-  return String(Math.min(Math.max(n, min), max));
-};
-
-const buildTimeString = ({ hour, minute, amPm }) => {
-  // if any field missing, treat as blank time
-  if (!hour || !minute || !amPm) return "";
-  const hh = clampInt(hour, 1, 12);
-  const mm = clampInt(minute, 0, 59);
-  if (!hh || mm === "" || !["AM", "PM"].includes(amPm)) return "";
-  return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")} ${amPm}`;
-};
 
 // 1) Edit Task Name (supports SetOne vs SetAll)
 // scope: "one" | "all"
@@ -489,16 +664,7 @@ const TopModeControls = (
     {!removeMode && !editMode && (
       <button
         onClick={handleAddTask}
-        style={{
-          width: "100%",
-          padding: "12px",
-          marginTop: "15px",
-          backgroundColor: "#005b96",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          fontSize: "1em",
-        }}
+        style={button(clr.primary, { marginTop: "15px" })}
       >
         Add Task
       </button>
@@ -508,16 +674,7 @@ const TopModeControls = (
     {!editMode && (
       <button
         onClick={toggleRemoveMode}
-        style={{
-          width: "100%",
-          padding: "12px",
-          marginTop: "10px",
-          backgroundColor: "#005b96",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          fontSize: "1em",
-        }}
+        style={button(clr.primary)}
       >
         {removeMode ? "Untoggle Remove Task" : "Remove Tasks"}
       </button>
@@ -526,16 +683,7 @@ const TopModeControls = (
     {removeMode && (
       <button
         onClick={handleSaveChanges}
-        style={{
-          width: "100%",
-          padding: "12px",
-          marginTop: "10px",
-          backgroundColor: "#009605",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          fontSize: "1em",
-        }}
+        style={button(SAVE_GREEN)}
       >
         Save Removed Tasks
       </button>
@@ -546,19 +694,8 @@ const TopModeControls = (
       <button
         onClick={() => {
           toggleEditMode();
-
         }}
-
-        style={{
-          width: "100%",
-          padding: "12px",
-          marginTop: "10px",
-          backgroundColor: "#005b96",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          fontSize: "1em",
-        }}
+        style={button(clr.primary)}
       >
         {editMode ? "Untoggle Edit Tasks" : "Edit Tasks"}
       </button>
@@ -567,16 +704,7 @@ const TopModeControls = (
     {editMode && (
       <button
         onClick={handleSaveEdits}
-        style={{
-          width: "100%",
-          padding: "12px",
-          marginTop: "10px",
-          backgroundColor: "#009605",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          fontSize: "1em",
-        }}
+        style={button(SAVE_GREEN)}
       >
         Save Edited Tasks
       </button>
@@ -598,7 +726,7 @@ const BottomModeControls = (
           width: "100%",
           padding: "12px",
           marginTop: "10px",
-          backgroundColor: "#005b96",
+          backgroundColor: clr.primary,
           color: "#fff",
           border: "none",
           borderRadius: "5px",
@@ -641,7 +769,7 @@ const BottomModeControls = (
           width: "100%",
           padding: "12px",
           marginTop: "10px",
-          backgroundColor: "#005b96",
+          backgroundColor: clr.primary,
           color: "#fff",
           border: "none",
           borderRadius: "5px",
@@ -919,63 +1047,32 @@ const handleQuickPrint = () => {
     return;
   }
 
-  // Try real day boxes first
-  let dayBoxes = Array.from(taskSection.querySelectorAll(':scope > .day-box'));
-  const daysWrapper = taskSection.children[1] || taskSection;
-
-  // Fallback: synthesize 7 day boxes by splitting on day names
-  if (dayBoxes.length < 7) {
-    const DAY_FULL  = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    const DAY_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-    const html = daysWrapper.innerHTML;
-    const splitRegex = new RegExp("(?:^|>)\\s*(" + [...DAY_FULL, ...DAY_SHORT].join("|") + ")\\b","gi");
-
-    let match; const indices = [];
-    while ((match = splitRegex.exec(html)) !== null) {
-      const token = match[1];
-      const full = DAY_FULL.find(d => d.toLowerCase().startsWith(token.toLowerCase())) || token;
-      indices.push({ name: full, index: match.index });
-    }
-    if (!indices.length) {
-      alert("Could not detect day sections. Make sure each day name (e.g., 'Sunday', 'Mon') appears clearly.");
-      return;
-    }
-
-    const chunks = [];
-    for (let i = 0; i < indices.length && chunks.length < 7; i++) {
-      const startIdx = indices[i].index;
-      const endIdx   = (i + 1 < indices.length) ? indices[i + 1].index : html.length;
-      const name     = indices[i].name;
-      let piece      = html.slice(startIdx, endIdx);
-
-      if (piece[0] === '>') piece = piece.slice(1);
-      const dayHeadRE = new RegExp("^\\s*(?:" + [...DAY_FULL, ...DAY_SHORT].join("|") + ")\\b\\s*[:\\-]*\\s*", "i");
-      piece = piece.replace(dayHeadRE, "");
-
-      chunks.push(`<div class="day-box"><h3 class="day-title">${name}</h3>${piece}</div>`);
-    }
-
-    dayBoxes = chunks.map(htmlStr => {
-      const tmp = document.createElement('div');
-      tmp.innerHTML = htmlStr;
-      return tmp.firstElementChild;
-    });
-  }
+  // Detect day containers via the DOM class — every visible day has .day-box.
+  // We previously fell back to an innerHTML regex that split on day-name
+  // tokens, but that corrupted event boxes when a user named an event
+  // after a day of the week (e.g. "Monday").
+  const dayBoxes = Array.from(taskSection.querySelectorAll('.day-box'));
 
   if (!dayBoxes.length) {
-    alert("Couldn't form any day boxes; check your markup.");
+    alert("Couldn't find any day boxes. Add at least one task first.");
     return;
   }
 
-  // --- Keep your existing pages (1/2 and 3/4) as-is ---
-  // Page 1 = first 4 day boxes (Sun→Wed) — top slice
-  const page1 = dayBoxes.slice(0, 4).map(el => el.outerHTML);
-  // Page 2 = same 4 but reversed — bottom slice
-  const page2 = [...page1].reverse();
+  // Dynamic split: fit up to 4 days in the first container, the rest in the second.
+  const total = dayBoxes.length;
+  const firstSize = Math.min(4, total);
+  const secondSize = Math.max(0, total - firstSize);
 
-  // Days 5–7 for 3-column containers (legacy container-2 → now 3 & 4 with slicing)
-  const c34 = dayBoxes.slice(4, 7).map(el => el.outerHTML);
-  const c34REV = [...c34].reverse();
+  // Top slices (page 1 + container 3)
+  const page1 = dayBoxes.slice(0, firstSize).map((el) => el.outerHTML);
+  const c34 = dayBoxes.slice(firstSize, total).map((el) => el.outerHTML);
+
+  // Bottom slices — for short-edge flip we reverse columns so content aligns
+  // when the paper is flipped along its short edge. For long-edge flip we
+  // keep the same order.
+  const reverseCols = printFlipEdge === "short";
+  const page2 = reverseCols ? [...page1].reverse() : [...page1];
+  const c34REV = reverseCols ? [...c34].reverse() : [...c34];
 
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
@@ -1016,7 +1113,7 @@ const handleQuickPrint = () => {
 
   .container-4col {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(${Math.max(1, firstSize)}, 1fr);
     gap: var(--col-gap);
     padding: 1mm;
     border: 3px solid transparent;
@@ -1043,6 +1140,24 @@ const handleQuickPrint = () => {
 
   .day-title { font-weight: bold; font-size: 16px; margin: 8px 0; text-align: center; }
 
+  /* Write-on lines under every event name and blank filler rows */
+  .day-inner ul, .day-inner-34 ul { list-style: none; padding: 0; margin: 0; }
+  .day-inner li, .day-inner-34 li {
+    border: none !important;
+    background: transparent !important;
+    padding: 4px 6px !important;
+    margin: 0 !important;
+    border-bottom: 1px solid #000 !important;
+    min-height: 18mm;
+    page-break-inside: avoid;
+  }
+  .day-inner li:last-child, .day-inner-34 li:last-child { border-bottom: 1px solid #000 !important; }
+  .print-blank-line {
+    border-bottom: 1px solid #000;
+    min-height: 18mm;
+    margin: 0;
+  }
+
   /* Bottom slice on reversed pages (Page 2 & 4) */
   .slice-bottom .day-viewport { height: calc(var(--total-h) - var(--slice1-h)); }
   .slice-bottom .day-inner   { transform: translateY(calc(-1 * var(--slice1-h))); }
@@ -1051,7 +1166,7 @@ const handleQuickPrint = () => {
   .container { box-sizing: border-box; margin: 0; padding: 1mm; border: 3px solid transparent; border-radius: 6px; display: grid; }
 
   .container-3, .container-4 {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(${Math.max(1, secondSize)}, 1fr);
     gap: var(--col-gap);
     margin-top: 5mm; /* only shows if present */
     border-color: #fff;
@@ -1102,8 +1217,26 @@ const handleQuickPrint = () => {
     };
 
     const root = document.getElementById('print-root');
+    const MAX_PRINT_EVENTS = ${MAX_EVENTS_PER_DAY};
 
-    /* ====== container-1 page builders (unchanged) ====== */
+    /* Pad each day's event list with blank filler lines so writable lines
+       always go from the current bottom of the real content down to the
+       total cap. */
+    function padBlankLines(dayEl) {
+      if (!dayEl) return;
+      const list = dayEl.querySelector('ul');
+      if (!list) return;
+      const existing = list.querySelectorAll('li').length;
+      const needed = Math.max(0, MAX_PRINT_EVENTS - existing);
+      for (let i = 0; i < needed; i++) {
+        const li = document.createElement('li');
+        li.className = 'print-blank-line';
+        li.innerHTML = '&nbsp;';
+        list.appendChild(li);
+      }
+    }
+
+    /* ====== container-1 page builders ====== */
     function makeSlicedCard(html) {
       const wrap = document.createElement('div');
       wrap.className = 'day-viewport';
@@ -1112,7 +1245,10 @@ const handleQuickPrint = () => {
       const tmp = document.createElement('div');
       tmp.innerHTML = html;
       const node = tmp.firstElementChild;
-      if (node) inner.appendChild(node);
+      if (node) {
+        padBlankLines(node);
+        inner.appendChild(node);
+      }
       wrap.appendChild(inner);
       return wrap;
     }
@@ -1125,7 +1261,7 @@ const handleQuickPrint = () => {
       const cont = document.createElement('div');
       cont.className = 'container-4col';
 
-      (htmlArray.slice(0, 4)).forEach(html => {
+      htmlArray.forEach(html => {
         const card = makeSlicedCard(html);
         cont.appendChild(card);
       });
@@ -1134,7 +1270,7 @@ const handleQuickPrint = () => {
       root.appendChild(page);
     }
 
-    /* ====== container-3/4 (3 columns) builders with slicing ====== */
+    /* ====== container-3/4 builders with slicing ====== */
     function makeSlicedCard34(html) {
       const wrap = document.createElement('div');
       wrap.className = 'day-viewport-34';
@@ -1143,7 +1279,10 @@ const handleQuickPrint = () => {
       const tmp = document.createElement('div');
       tmp.innerHTML = html;
       const node = tmp.firstElementChild;
-      if (node) inner.appendChild(node);
+      if (node) {
+        padBlankLines(node);
+        inner.appendChild(node);
+      }
       wrap.appendChild(inner);
       return wrap;
     }
@@ -1193,7 +1332,7 @@ const handleQuickPrint = () => {
 
 
 
-  const uploadTasksJSON = (event) => {
+  const readTasksFile = (event, onTasksReady) => {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -1202,8 +1341,7 @@ const handleQuickPrint = () => {
       try {
         const uploadedTasks = JSON.parse(e.target.result);
         if (Array.isArray(uploadedTasks)) {
-          setTasks(uploadedTasks); // Overwrite tasks
-          alert("Tasks uploaded successfully!");
+          onTasksReady(uploadedTasks);
         } else {
           alert("Invalid file format. Please upload a valid JSON file.");
         }
@@ -1212,6 +1350,25 @@ const handleQuickPrint = () => {
       }
     };
     reader.readAsText(file);
+    event.target.value = "";
+  };
+
+  const uploadTasksJSON = (event) => {
+    readTasksFile(event, (uploadedTasks) => {
+      setTasksWithHistory(uploadedTasks);
+      alert("Tasks uploaded successfully!");
+    });
+  };
+
+  const mergeTasksJSON = (event) => {
+    readTasksFile(event, (uploadedTasks) => {
+      setTasksWithHistory((prev) => {
+        const existingIds = new Set(prev.map((t) => String(t.id)));
+        const fresh = uploadedTasks.filter((t) => !existingIds.has(String(t.id)));
+        return [...prev, ...fresh];
+      });
+      alert("Tasks merged successfully!");
+    });
   };
 
   // Handle Times Change
@@ -1285,18 +1442,17 @@ const handleQuickPrint = () => {
     );
   };
 
+  // Reset custom day order when first day of week changes
+  useEffect(() => {
+    setCustomDayOrder(null);
+  }, [firstDayOfWeek]);
+
   // Get Ordered Days
-  const getOrderedDays = () => {
-    const days = taskListify.daysOfWeek;
-    const firstDayIndex = days.indexOf(firstDayOfWeek);
-    const orderedDays = [...days.slice(firstDayIndex), ...days.slice(0, firstDayIndex)];
-    return orderedDays;
-  };
+  const getOrderedDays = () => orderDays(firstDayOfWeek, taskListify.daysOfWeek);
 
   // Get Ordered Days for Task List
-  const getOrderedDaysOfWeek = () => {
-    return getOrderedDays().filter((day) => !hiddenDays.includes(day));
-  };
+  const getOrderedDaysOfWeek = () =>
+    getVisibleDays(customDayOrder || getOrderedDays(), hiddenDays);
 
   // Handle Sharing Task List
   const handleShareTaskList = () => {
@@ -1367,10 +1523,11 @@ const handleQuickPrint = () => {
   return (
     <div
       style={{
-        backgroundColor: "#b3cde3",
+        backgroundColor: clr.bg,
         minHeight: "100vh",
         padding: "40px 0",
         color: "#000",
+        fontFamily: fontStack,
       }}
     >
       <div
@@ -1385,7 +1542,7 @@ const handleQuickPrint = () => {
       >
         <h1
           style={{
-            color: "#005b96",
+            color: clr.primary,
             textAlign: "center",
             fontSize: "2.5em",
             fontWeight: "bold",
@@ -1397,7 +1554,7 @@ const handleQuickPrint = () => {
 
         <div
           style={{
-            border: "1px solid #005b96",
+            border: `1px solid ${clr.primary}`,
             borderRadius: "10px",
             padding: "20px",
             marginBottom: "20px",
@@ -1420,7 +1577,7 @@ const handleQuickPrint = () => {
                 width: "97%",
                 marginTop: "5px",
                 padding: "10px",
-                border: "1px solid #005b96",
+                border: `1px solid ${clr.primary}`,
                 borderRadius: "5px",
               }}
             />
@@ -1452,7 +1609,7 @@ const handleQuickPrint = () => {
                 width: "100%",
                 marginTop: "5px",
                 padding: "10px",
-                border: "1px solid #005b96",
+                border: `1px solid ${clr.primary}`,
                 borderRadius: "5px",
               }}
             >
@@ -1473,7 +1630,7 @@ const handleQuickPrint = () => {
                 width: "100%",
                 marginTop: "5px",
                 padding: "10px",
-                border: "1px solid #005b96",
+                border: `1px solid ${clr.primary}`,
                 borderRadius: "5px",
               }}
             >
@@ -1514,7 +1671,7 @@ const handleQuickPrint = () => {
                 width: "100%",
                 marginTop: "5px",
                 padding: "10px",
-                border: "1px solid #005b96",
+                border: `1px solid ${clr.primary}`,
                 borderRadius: "5px",
               }}
             >
@@ -1562,7 +1719,7 @@ const handleQuickPrint = () => {
                             style={{
                               width: "100%",
                               padding: "10px",
-                              border: "1px solid #005b96",
+                              border: `1px solid ${clr.primary}`,
                               borderRadius: "5px",
                               textAlign: "center",
                             }}
@@ -1598,7 +1755,7 @@ const handleQuickPrint = () => {
                             style={{
                               width: "100%",
                               padding: "10px",
-                              border: "1px solid #005b96",
+                              border: `1px solid ${clr.primary}`,
                               borderRadius: "5px",
                               textAlign: "center",
                             }}
@@ -1630,7 +1787,7 @@ const handleQuickPrint = () => {
                             style={{
                               width: "100%",
                               padding: "10px",
-                              border: "1px solid #005b96",
+                              border: `1px solid ${clr.primary}`,
                               borderRadius: "5px",
                             }}
                           >
@@ -1666,7 +1823,7 @@ const handleQuickPrint = () => {
                           width: "97.3%",
                           marginTop: "5px",
                           padding: "10px",
-                          border: "1px solid #005b96",
+                          border: `1px solid ${clr.primary}`,
                           borderRadius: "5px",
                         }}
                       />
@@ -1682,6 +1839,60 @@ const handleQuickPrint = () => {
 
         {TopModeControls}
 
+        {/* Undo / Redo */}
+        <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+          <button
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            style={{
+              flex: 1,
+              padding: "10px",
+              backgroundColor: undoStack.length === 0 ? "#ccc" : clr.secondary,
+              color: "#fff",
+              border: "none",
+              borderRadius: "5px",
+              fontSize: "0.95em",
+              cursor: undoStack.length === 0 ? "not-allowed" : "pointer",
+            }}
+            title="Undo (Ctrl+Z)"
+          >
+            ↩ Undo
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            style={{
+              flex: 1,
+              padding: "10px",
+              backgroundColor: redoStack.length === 0 ? "#ccc" : clr.secondary,
+              color: "#fff",
+              border: "none",
+              borderRadius: "5px",
+              fontSize: "0.95em",
+              cursor: redoStack.length === 0 ? "not-allowed" : "pointer",
+            }}
+            title="Redo (Ctrl+Y)"
+          >
+            ↪ Redo
+          </button>
+        </div>
+
+        {/* Search / Filter */}
+        <div style={{ marginTop: "15px" }}>
+          <input
+            type="text"
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: "97%",
+              padding: "10px",
+              border: `1px solid ${clr.primary}`,
+              borderRadius: "5px",
+              fontSize: "1em",
+            }}
+          />
+        </div>
 
         {/* Task List by Day*/}
         <TaskList
@@ -1700,6 +1911,11 @@ const handleQuickPrint = () => {
           orderByDay={orderByDay}
           onReorderDay={handleReorderDay}
           makeEventKey={makeEventKey}
+          searchQuery={searchQuery}
+          completedOccurrences={completedOccurrences}
+          onToggleComplete={handleToggleComplete}
+          onReorderDays={handleReorderDays}
+          customDayNames={customDayNames}
         />
 
 
@@ -1714,7 +1930,7 @@ const handleQuickPrint = () => {
             width: "100%",
             padding: "12px",
             marginTop: "20px",
-            backgroundColor: "#005b96",
+            backgroundColor: clr.primary,
             color: "#fff",
             border: "none",
             borderRadius: "5px",
@@ -1726,7 +1942,7 @@ const handleQuickPrint = () => {
         {showSettings && (
           <div
             style={{
-              border: "1px solid #005b96",
+              border: `1px solid ${clr.primary}`,
               borderRadius: "10px",
               padding: "20px",
               marginTop: "10px",
@@ -1740,7 +1956,7 @@ const handleQuickPrint = () => {
                 width: "100%",
                 marginTop: "5px",
                 padding: "10px",
-                border: "1px solid #005b96",
+                border: `1px solid ${clr.primary}`,
                 borderRadius: "5px",
               }}
             >
@@ -1757,7 +1973,7 @@ const handleQuickPrint = () => {
                 width: "100%",
                 marginTop: "5px",
                 padding: "10px",
-                border: "1px solid #005b96",
+                border: `1px solid ${clr.primary}`,
                 borderRadius: "5px",
               }}
             >
@@ -1793,13 +2009,103 @@ const handleQuickPrint = () => {
                 width: "100%",
                 marginTop: "5px",
                 padding: "10px",
-                border: "1px solid #005b96",
+                border: `1px solid ${clr.primary}`,
                 borderRadius: "5px",
               }}
             >
               <option value="None">Default (None)</option>
               <option value="HighToLow">Highest to Lowest</option>
               <option value="LowToHigh">Lowest to Highest</option>
+            </select>
+
+            {/* Colour Theme */}
+            <div style={{ marginTop: "15px" }} />
+            <label>Colour Theme:</label>
+            <select
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+              style={{
+                width: "100%",
+                marginTop: "5px",
+                padding: "10px",
+                border: `1px solid ${clr.primary}`,
+                borderRadius: "5px",
+              }}
+            >
+              <option value="ocean">Ocean (Light Blue &amp; Dark Blue)</option>
+              <option value="sunset">Sunset (Orange &amp; Red)</option>
+              <option value="forest">Forest (Light Green &amp; Dark Green)</option>
+              <option value="purple">Purple Dusk (Lavender &amp; Deep Purple)</option>
+              <option value="rose">Rose Gold (Blush Pink &amp; Rose)</option>
+              <option value="crimson">Crimson (Pink &amp; Deep Red)</option>
+              <option value="tangerine">Tangerine (Peach &amp; Burnt Orange)</option>
+              <option value="lemon">Lemon (Cream &amp; Gold)</option>
+              <option value="mint">Mint (Sage &amp; Teal)</option>
+              <option value="sky">Sky (Sky Blue &amp; Navy)</option>
+              <option value="indigo">Indigo (Lavender Gray &amp; Indigo)</option>
+              <option value="slate">Slate (Silver &amp; Charcoal)</option>
+            </select>
+
+            {/* Font Family */}
+            <div style={{ marginTop: "15px" }} />
+            <label>Font:</label>
+            <select
+              value={fontFamily}
+              onChange={(e) => setFontFamily(e.target.value)}
+              style={{
+                width: "100%",
+                marginTop: "5px",
+                padding: "10px",
+                border: `1px solid ${clr.primary}`,
+                borderRadius: "5px",
+              }}
+            >
+              <option value="system">System Default</option>
+              <option value="serif">Serif (Georgia)</option>
+              <option value="mono">Monospace (Courier)</option>
+              <option value="rounded">Rounded (Trebuchet)</option>
+              <option value="classic">Classic (Arial)</option>
+            </select>
+
+            {/* Rename Day Titles */}
+            <div style={{ marginTop: "15px" }} />
+            <label>Rename Day Titles (blank = default):</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "5px" }}>
+              {taskListify.daysOfWeek.map((day) => (
+                <div key={day} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ width: "80px", fontSize: "0.9em" }}>{day}:</span>
+                  <input
+                    type="text"
+                    placeholder={day}
+                    value={customDayNames[day] || ""}
+                    onChange={(e) => handleRenameDay(day, e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "6px",
+                      border: `1px solid ${clr.primary}`,
+                      borderRadius: "5px",
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Print Flip Edge */}
+            <div style={{ marginTop: "15px" }} />
+            <label>Print Flip Edge:</label>
+            <select
+              value={printFlipEdge}
+              onChange={(e) => setPrintFlipEdge(e.target.value)}
+              style={{
+                width: "100%",
+                marginTop: "5px",
+                padding: "10px",
+                border: `1px solid ${clr.primary}`,
+                borderRadius: "5px",
+              }}
+            >
+              <option value="short">Short Edge Flip (columns reversed on back)</option>
+              <option value="long">Long Edge Flip (columns stay in place)</option>
             </select>
 
             <div style={{ marginTop: "15px" }} />
@@ -1813,7 +2119,7 @@ const handleQuickPrint = () => {
                 width: "100%",
                 padding: "10px",
                 marginTop: "5px",
-                backgroundColor: "#003f69",
+                backgroundColor: clr.secondary,
                 color: "#fff",
                 borderRadius: "5px",
                 border: "none",
@@ -1836,7 +2142,7 @@ const handleQuickPrint = () => {
                 width: "97.33%",
                 padding: "10px",
                 marginTop: "5px",
-                backgroundColor: "#003f69",
+                backgroundColor: clr.secondary,
                 color: "#fff",
                 textAlign: "center",
                 borderRadius: "5px",
@@ -1845,11 +2151,38 @@ const handleQuickPrint = () => {
                 fontSize: "15px",
               }}
             >
-              Upload Task List
+              Upload Task List (Replace)
               <input
                 type="file"
                 accept=".json"
                 onChange={uploadTasksJSON}
+                style={{
+                  display: "none",
+                }}
+              />
+            </label>
+
+            <label
+              style={{
+                display: "block",
+                width: "97.33%",
+                padding: "10px",
+                marginTop: "10px",
+                backgroundColor: clr.secondary,
+                color: "#fff",
+                textAlign: "center",
+                borderRadius: "5px",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "15px",
+              }}
+              title="Adds uploaded tasks to the existing list instead of replacing it"
+            >
+              Merge Upload (Add to List)
+              <input
+                type="file"
+                accept=".json"
+                onChange={mergeTasksJSON}
                 style={{
                   display: "none",
                 }}
@@ -1861,16 +2194,13 @@ const handleQuickPrint = () => {
               Quick Print gives the option to save list as a PDF for viewing, or send it automatically to
               print screen:
             </label>
-            <label>
-              ([ADVANCED]Side note, long edge flip printing only works if there are 4 elements in the container 1)
-            </label>
             <button
               onClick={handleQuickPrint}
               style={{
                 width: "100%",
                 padding: "10px",
                 marginTop: "5px",
-                backgroundColor: "#003f69",
+                backgroundColor: clr.secondary,
                 color: "#fff",
                 borderRadius: "5px",
                 border: "none",
@@ -1895,7 +2225,7 @@ const handleQuickPrint = () => {
                   style={{
                     width: "100%",
                     padding: "10px",
-                    backgroundColor: "#003f69",
+                    backgroundColor: clr.secondary,
                     color: "#fff",
                     borderRadius: "5px",
                     border: "none",
@@ -1912,7 +2242,7 @@ const handleQuickPrint = () => {
                     width: "100%",
                     padding: "10px",
                     marginTop: "5px",
-                    backgroundColor: "#003f69",
+                    backgroundColor: clr.secondary,
                     color: "#fff",
                     borderRadius: "5px",
                     border: "none",
@@ -1937,7 +2267,7 @@ const handleQuickPrint = () => {
                   width: "100%",
                   padding: "10px",
                   marginTop: "10px",
-                  backgroundColor: "#003f69",
+                  backgroundColor: clr.secondary,
                   color: "#fff",
                   border: "none",
                   borderRadius: "5px",
@@ -1949,6 +2279,60 @@ const handleQuickPrint = () => {
             )}
           </div>
         )}
+
+        {/* Delete current list — always visible at the bottom */}
+        <div style={{ marginTop: "30px", borderTop: `1px solid ${clr.primary}`, paddingTop: "15px" }}>
+          {!confirmDeleteList ? (
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteList(true)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                backgroundColor: "#b71c1c",
+                color: "#fff",
+                border: "none",
+                borderRadius: "5px",
+                fontSize: "1em",
+              }}
+            >
+              Delete Current List
+            </button>
+          ) : (
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={handleDeleteList}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  backgroundColor: "#b71c1c",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "5px",
+                  fontSize: "1em",
+                }}
+              >
+                Confirm Delete (Cannot Undo)
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteList(false)}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  backgroundColor: clr.secondary,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "5px",
+                  fontSize: "1em",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TaskListify from './TaskListify';
 import TaskList from './TaskList';
+import { getOrderedDays, getVisibleDays } from './utils/schedule';
 
 const SharePage = () => {
   const [recipientName, setRecipientName] = useState('');
@@ -19,12 +20,8 @@ const SharePage = () => {
 
   const taskListify = new TaskListify();
 
-  const getOrderedDaysOfWeek = () => {
-    const days = taskListify.daysOfWeek;
-    const firstDayIndex = days.indexOf(firstDayOfWeek);
-    const orderedDays = [...days.slice(firstDayIndex), ...days.slice(0, firstDayIndex)];
-    return orderedDays.filter((day) => !hiddenDays.includes(day));
-  };
+  const getOrderedDaysOfWeek = () =>
+    getVisibleDays(getOrderedDays(firstDayOfWeek, taskListify.daysOfWeek), hiddenDays);
 
   const taskListRef = useRef(null);
 

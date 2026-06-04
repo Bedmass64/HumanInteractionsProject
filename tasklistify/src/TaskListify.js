@@ -1,6 +1,8 @@
+import { DAYS_OF_WEEK } from "./utils/schedule";
+
 class TaskListify {
   constructor() {
-    this.daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    this.daysOfWeek = [...DAYS_OF_WEEK];
     this.tasksByDay = {};
     this.daysOfWeek.forEach(day => {
       this.tasksByDay[day] = [];
