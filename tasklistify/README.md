@@ -74,4 +74,4 @@ This is a frontend-only class project, so a couple of parts are prototypes rathe
 
 ## Stuff I'd still like to fix
 
-`TaskListifyPage.js` got pretty big and ends up holding most of the app's state. I've 
+`TaskListifyPage.js` got pretty big and ends up holding most of the app's state. I've already pulled the scheduling logic out into `src/utils/schedule.js` (with tests) and moved localStorage access into the `useLocalStorage` hook. The next thing is breaking that big component into smaller pieces and pulling the related state together with a reducer. The full list is in [ROADMAP.md](./ROADMAP.md).
